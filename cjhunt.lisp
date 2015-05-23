@@ -1,4 +1,4 @@
-(use-package (mapcar 'string-upcase (ql:quickload '(:drakma :cl-json :parse-float))))
+(use-package (ql:quickload '(:drakma :cl-json :parse-float)))
 
 (defun-json-rpc bitcoind.rpc :explicit (method &rest params &aux stream)
   (unwind-protect
