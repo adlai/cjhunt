@@ -36,6 +36,8 @@
                            (warn "~A nontrivial cj" txid)))))))))))
 
 (defun blockjoins (blkid &aux (blk (bitcoind.rpc "getblock" blkid)))
-  (loop for txid in (cdr (assoc :tx blk))
-     for cjp = (handler-bind ((warning #'muffle-warning))
-                 (coinjoinp txid)) when cjp collect (cons txid cjp)))
+  (values (loop for txid in (cdr (assoc :tx blk))
+             for cjp = (handler-bind ((warning #'muffle-warning))
+                         (coinjoinp txid)) when cjp collect (cons txid cjp))
+          (cdr (assoc :previousblockhash blk))
+          (cdr (assoc :nextblockhash blk))))
