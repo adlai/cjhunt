@@ -1,4 +1,4 @@
-(use-package (cons :json-rpc (ql:quickload '(:drakma :cl-json :parse-float))))
+(use-package (cons :json-rpc (ql:quickload '(:cl-json :drakma :parse-float :alexandria :local-time))))
 
 (defun-json-rpc bitcoind.rpc :explicit (method &rest params &aux stream)
   (unwind-protect
