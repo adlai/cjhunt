@@ -41,3 +41,11 @@
                          (coinjoinp txid)) when cjp collect (cons txid cjp))
           (cdr (assoc :previousblockhash blk))
           (cdr (assoc :nextblockhash blk))))
+
+(let (all-joins (blkid (cdr (assoc :bestblockhash
+                                   (bitcoind.rpc "getblockchaininfo")))))
+  (time (loop
+           (multiple-value-bind (joins previd) (time (blockjoins blkid))
+             (print (length (and joins (push (cons blkid joins) all-joins))))
+             (if (or (null previd) (= (length all-joins) 5000))
+                 (return all-joins) (setf blkid previd))))))
