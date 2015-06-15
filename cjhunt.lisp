@@ -1,17 +1,23 @@
 (use-package (cons :json-rpc (ql:quickload '(:cl-json :drakma :parse-float :alexandria :local-time))))
 
-(defun-json-rpc bitcoind.rpc :explicit (method &rest params &aux stream)
-  (unwind-protect
-       (json-bind (result error)
-           (setf stream (http-request
-                         "http://host:port" :method :post :content
-                         (encode-json-alist-to-string
-                          `(("method" . ,method)
-                            ("params" . ,(apply 'vector params))))
-                         :want-stream t :basic-authorization
-                         '("username" "password")))
-         (if error (error "bitcoind error: ~S" error) result))
-    (when stream (close stream))))
+(defclass bitcoind ()
+  ((url :type string :initarg :url) (stream :type stream)
+   (auth :type (cons string (cons string null)) :initarg :auth)))
+
+(defun-json-rpc bitcoind.rpc :explicit (bitcoind method &rest params)
+  (with-slots (url auth stream) bitcoind
+    (multiple-value-bind (body status headers uri redundant closep)
+        (multiple-value-call #'http-request
+          url :method :post :close () :want-stream t :content
+          (encode-json-alist-to-string
+           `(("method" . ,method) ("params" . ,(apply 'vector params))))
+          :basic-authorization auth :keep-alive t
+          (if (and (slot-boundp bitcoind 'stream) (open-stream-p stream))
+              (values :stream stream) (values)))
+      (declare (ignorable status headers uri redundant))
+      (json-bind (result error) body
+        (if closep (close body) (read-line (setf stream redundant)))
+        (if error (error "bitcoind error: ~S" error) result)))))
 
 (defun coinjoinp (txid &aux (tx (bitcoind.rpc "getrawtransaction" txid 1)))
   (let ((ins (cdr (assoc :vin tx))) (outs (cdr (assoc :vout tx))))
