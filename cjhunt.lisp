@@ -30,7 +30,7 @@
                            (tx (bitcoind.rpc *node* "getrawtransaction" id 1)))
   (let ((ins (cdr (assoc :vin tx))) (outs (cdr (assoc :vout tx))))
     (cond
-      ;; ignore transactiosn which have multisig inputs, since the current
+      ;; ignore transactions which have multisig inputs, since the current
       ;; joinmarket doesn't use multisig (but could have a multisig output)
       ((find-if (lambda (asm) (string= "0 " asm :end2 2))
                 ins :key (lambda (in)
@@ -53,8 +53,12 @@
                        (if (apply #'= cjout-sizes)
                            (cons n-cjouts (car cjout-sizes))
                            ;; a nontrivial coinjoin has multiple candidates for
-                           ;; the actual output size. ignore them, for now.
-                           (warn "~A nontrivial cj" id)))))))))))
+                           ;; the actual output size. use the largest ones.
+                           (loop for size in cjout-sizes
+                              with counts = () and most = 0 and best
+                              for c = (incf (getf counts size 0))
+                              if (> c most) do (setf most c best size)
+                              finally (return (cons most best)))))))))))))
 
 ;;; we are primarily looking for joinmarket coinjoins
 (defun coinjoinp (txid &aux)
