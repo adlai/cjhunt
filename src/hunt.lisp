@@ -1,7 +1,10 @@
-(defpackage :cjhunt
-  (:use :cl :json-rpc .
-        #.(ql:quickload '(:cl-json :drakma :parse-float :alexandria :local-time))))
-(in-package :cjhunt)
+(in-package :cl-user)
+(defpackage cjhunt.hunt
+  (:use :cl :json-rpc :cl-json :drakma :parse-float :alexandria :local-time)
+  (:export :bitcoind.rpc :*node*
+           :getblockchaininfo :getblock :getrawtransaction
+           :coinjoinp :blockjoins))
+(in-package :cjhunt.hunt)
 
 (defclass bitcoind ()
   ((url :type string :initarg :url) (stream :type stream)
@@ -80,11 +83,11 @@
           (cdr (assoc :previousblockhash blk))
           (cdr (assoc :nextblockhash blk))))
 
-;;; hardcoded script: searches from the best block backwards, accumulating
-;;; the coinjoins in each block, grouped by blockid. collects 10 such blocks.
-(let (all-joins (blkid (cdr (assoc :bestblockhash (getblockchaininfo)))))
-  (time (loop
-           (multiple-value-bind (joins previd) (time (blockjoins blkid))
-             (print (length (and joins (push (cons blkid joins) all-joins))))
-             (if (= (length all-joins) 10)
-                 (return (pprint all-joins)) (setf blkid previd))))))
+;; ;;; hardcoded script: searches from the best block backwards, accumulating
+;; ;;; the coinjoins in each block, grouped by blockid. collects 10 such blocks.
+;; (let (all-joins (blkid (cdr (assoc :bestblockhash (getblockchaininfo)))))
+;;   (time (loop
+;;            (multiple-value-bind (joins previd) (time (blockjoins blkid))
+;;              (print (length (and joins (push (cons blkid joins) all-joins))))
+;;              (if (= (length all-joins) 10)
+;;                  (return (pprint all-joins)) (setf blkid previd))))))
