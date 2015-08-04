@@ -26,8 +26,15 @@
   (make-instance 'bitcoind :url "http://localhost:8332" ; or wherever
                  :auth '("rpcuser" "rpcpassword"))) ; from bitcoin.conf
 
-(defun coinjoinp-cdr (id &optional
-                           (tx (bitcoind.rpc *node* "getrawtransaction" id 1)))
+(macrolet ((define-rpc (command &optional args &rest rpc-args)
+             `(defun ,command ,args
+                (bitcoind.rpc *node* ,(string-downcase command) ,@rpc-args))))
+  (define-rpc getblockchaininfo)
+  (define-rpc getblock
+      (&optional (id (cdr (assoc :bestblockhash (getblockchaininfo))))) id)
+  (define-rpc getrawtransaction (id &optional (jsonp 1)) id jsonp))
+
+(defun coinjoinp-cdr (id &optional (tx (getrawtransaction id)))
   (let ((ins (cdr (assoc :vin tx))) (outs (cdr (assoc :vout tx))))
     (cond
       ;; ignore transactions which have multisig inputs, since the current
@@ -61,13 +68,12 @@
                               finally (return (cons most best)))))))))))))
 
 ;;; we are primarily looking for joinmarket coinjoins
-(defun coinjoinp (txid &aux)
-  (let ((tx (bitcoind.rpc *node* "getrawtransaction" txid 1)))
-    ;; ignore the coinbase transaction
-    (if (find :coinbase (cdr (assoc :vin tx)) :key #'caar) (warn "~A coinbase" txid)
-        (coinjoinp-cdr txid tx))))
+(defun coinjoinp (txid &aux (tx (getrawtransaction txid)))
+  ;; ignore the coinbase transaction
+  (if (find :coinbase (cdr (assoc :vin tx)) :key #'caar) (warn "~A coinbase" txid)
+      (coinjoinp-cdr txid tx)))
 
-(defun blockjoins (blkid &aux (blk (bitcoind.rpc *node* "getblock" blkid)))
+(defun blockjoins (blkid &aux (blk (getblock blkid)))
   (values (loop for txid in (cddr (assoc :tx blk)) ; cddr skips coinbase txs
              for cjp = (handler-bind ((warning #'muffle-warning))
                          (coinjoinp-cdr txid)) when cjp collect (cons txid cjp))
@@ -76,8 +82,7 @@
 
 ;;; hardcoded script: searches from the best block backwards, accumulating
 ;;; the coinjoins in each block, grouped by blockid. collects 10 such blocks.
-(let (all-joins (blkid (cdr (assoc :bestblockhash
-                                   (bitcoind.rpc *node* "getblockchaininfo")))))
+(let (all-joins (blkid (cdr (assoc :bestblockhash (getblockchaininfo)))))
   (time (loop
            (multiple-value-bind (joins previd) (time (blockjoins blkid))
              (print (length (and joins (push (cons blkid joins) all-joins))))
