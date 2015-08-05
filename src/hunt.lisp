@@ -21,9 +21,11 @@
           (if (and (slot-boundp bitcoind 'stream) (open-stream-p stream))
               (values :stream stream) (values)))
       (declare (ignorable status headers uri redundant))
-      (json-bind (result error) body
-        (if closep (close body) (read-line (setf stream redundant)))
-        (if error (error "bitcoind error: ~S" error) result)))))
+      (let ((json:*real-handler* (lambda (amount)
+                                   (parse-float amount :type 'rational))))
+        (json-bind (result error) body
+          (if closep (close body) (read-line (setf stream redundant)))
+          (if error (error "bitcoind error: ~S" error) result))))))
 
 (defvar *node*                          ; edit these!
   (make-instance 'bitcoind :url "http://localhost:8332" ; or wherever
