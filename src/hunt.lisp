@@ -78,6 +78,20 @@
   (if (find :coinbase (cdr (assoc :vin tx)) :key #'caar) (warn "~A coinbase" txid)
       (coinjoinp-cdr txid tx)))
 
+(defun tx-fee (txid &aux (tx (getrawtransaction txid)))
+  (let ((ins (mapcar (lambda (in)
+                       (let* ((ptx (getrawtransaction
+                                    (cdr (assoc :txid in))))
+                              (out (nth (cdr (assoc :vout in))
+                                        (cdr (assoc :vout ptx)))))
+                         (cdr (assoc :value out))))
+                     (cdr (assoc :vin tx))))
+        (outs (mapcar (lambda (out) (cdr (assoc :value out)))
+                      (cdr (assoc :vout tx)))))
+    (let ((fee (reduce #'- outs :initial-value (reduce #'+ ins))))
+      ;; primary value - bitcoin, secondary - satoshi per byte
+      (values fee (/ fee (length (cdr (assoc :hex tx))) 1/2 (expt 10 -8))))))
+
 (defun blockjoins (blkid &aux (blk (getblock blkid)))
   (values (loop for txid in (cddr (assoc :tx blk)) ; cddr skips coinbase txs
              for cjp = (handler-bind ((warning #'muffle-warning))
