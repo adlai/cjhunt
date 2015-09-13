@@ -7,7 +7,7 @@
   :version "0.1"
   :author "Adlai Chandrasekhar"
   :license "do what thou wilt"
-  :depends-on (:clack
+  :depends-on (:clack-v1-compat
                :caveman2
                :envy
                :cl-ppcre
