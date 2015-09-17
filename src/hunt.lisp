@@ -68,7 +68,8 @@
                            ;; the actual output size. use the largest ones.
                            (loop for size in cjout-sizes
                               with counts = () and most = 0 and best
-                              for c = (incf (getf counts size 0))
+                              ;; hacky fix: ratios aren't eq, getf has no :key
+                              for c = (incf (getf counts (* 10e8 size) 0))
                               if (> c most) do (setf most c best size)
                               finally (return (cons most best)))))))))))))
 
