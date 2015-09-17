@@ -7,10 +7,12 @@
   :version "0.1"
   :author "Adlai Chandrasekhar"
   :license "do what thou wilt"
-  :depends-on (:clack-v1-compat
+  :depends-on (:clack
+               :lack
                :caveman2
                :envy
                :cl-ppcre
+               :uiop
 
                ;; for @route annotation
                :cl-syntax-annot
