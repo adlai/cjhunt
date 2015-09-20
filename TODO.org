@@ -1,0 +1,11 @@
+* TODO push node config into caveman config
+* TODO demacrolet define-rpc
+* TODO excise bitcoind interface library
+* TODO html templates
+** TODO block
+** TODO tx
+** TODO coinjoin
+* TODO caching
+** TODO coinjoinp
+** TODO coinjoinp-cdr
+** TODO blockjoins
