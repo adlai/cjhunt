@@ -35,6 +35,7 @@
              `(defun ,command ,args
                 (bitcoind.rpc *node* ,(string-downcase command) ,@rpc-args))))
   (define-rpc getblockchaininfo)
+  (define-rpc getbestblockhash)
   (define-rpc getblock
       (&optional (id (cdr (assoc :bestblockhash (getblockchaininfo))))) id)
   (define-rpc getrawtransaction (id &optional (jsonp 1)) id jsonp))
@@ -63,7 +64,8 @@
                      (warn "~A inputs ~D < ~D cjouts" id n-pks n-cjouts)
                      (let ((cjout-sizes (mapcar #'cdar cjouts)))
                        (if (apply #'= cjout-sizes)
-                           (cons n-cjouts (car cjout-sizes))
+                           `#(((:participants . ,n-cjouts)
+                               (:size . ,(car cjout-sizes))))
                            ;; a nontrivial coinjoin has multiple candidates for
                            ;; the actual output size. use the largest ones.
                            (loop for size in cjout-sizes
@@ -71,7 +73,8 @@
                               ;; hacky fix: ratios aren't eq, getf has no :key
                               for c = (incf (getf counts (* 10e8 size) 0))
                               if (> c most) do (setf most c best size)
-                              finally (return (cons most best)))))))))))))
+                              finally (return `#(((:participants . ,most)
+                                                  (:size . ,best)))))))))))))))
 
 ;;; we are primarily looking for joinmarket coinjoins
 (defun coinjoinp (txid &aux (tx (getrawtransaction txid)))
@@ -93,18 +96,11 @@
       ;; primary value - bitcoin, secondary - satoshi per byte
       (values fee (/ fee (length (cdr (assoc :hex tx))) 1/2 (expt 10 -8))))))
 
-(defun blockjoins (blkid &aux (blk (getblock blkid)))
-  (values (loop for txid in (cddr (assoc :tx blk)) ; cddr skips coinbase txs
-             for cjp = (handler-bind ((warning #'muffle-warning))
-                         (coinjoinp-cdr txid)) when cjp collect (cons txid cjp))
-          (cdr (assoc :previousblockhash blk))
-          (cdr (assoc :nextblockhash blk))))
+(defun blockjoins (blkid &aux (blk (getblock (or blkid (getbestblockhash)))))
+  (let ((cjs (loop for txid in (cddr (assoc :tx blk)) ; cddr skips coinbase txs
+                for cjp = (handler-bind ((warning #'muffle-warning))
+                            (coinjoinp-cdr txid))
+                when cjp collect (cons txid cjp))))
+    (setf (cdr (assoc :tx blk)) cjs)    ; dump coinbases
+    blk))
 
-;; ;;; hardcoded script: searches from the best block backwards, accumulating
-;; ;;; the coinjoins in each block, grouped by blockid. collects 10 such blocks.
-;; (let (all-joins (blkid (cdr (assoc :bestblockhash (getblockchaininfo)))))
-;;   (time (loop
-;;            (multiple-value-bind (joins previd) (time (blockjoins blkid))
-;;              (print (length (and joins (push (cons blkid joins) all-joins))))
-;;              (if (= (length all-joins) 10)
-;;                  (return (pprint all-joins)) (setf blkid previd))))))

@@ -31,7 +31,7 @@
   (render-json (remove :tx (if |id| (getblock |id|) (getblock)) :key #'car)))
 
 (defroute "/blockjoins" (&key |id|)
-  (princ-to-string (blockjoins |id|)))
+  (render-json (blockjoins |id|)))
 
 ;;
 ;; Error pages
