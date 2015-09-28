@@ -63,18 +63,25 @@
                  (if (< n-pks n-cjouts)
                      (warn "~A inputs ~D < ~D cjouts" id n-pks n-cjouts)
                      (let ((cjout-sizes (mapcar #'cdar cjouts)))
-                       (if (apply #'= cjout-sizes)
-                           `#(((:participants . ,n-cjouts)
-                               (:size . ,(car cjout-sizes))))
-                           ;; a nontrivial coinjoin has multiple candidates for
-                           ;; the actual output size. use the largest ones.
-                           (loop for size in cjout-sizes
-                              with counts = () and most = 0 and best
-                              ;; hacky fix: ratios aren't eq, getf has no :key
-                              for c = (incf (getf counts (* 10e8 size) 0))
-                              if (> c most) do (setf most c best size)
-                              finally (return `#(((:participants . ,most)
-                                                  (:size . ,best)))))))))))))))
+                       (flet ((report (n size &aux (change (- (length outs) n)))
+                                (when (> n 2) ; skip trivial false positives
+                                  ;; these are the two types of coinjoin
+                                  ;; currently created by joinmarket:
+                                  (case (- n change)
+                                    (1 `#(((:participants . ,n) (:type . :sweep)
+                                           (:size . ,(* (expt 10 8) size)))))
+                                    (0 `#(((:participants . ,n) (:type . :send)
+                                           (:size . ,(* (expt 10 8) size)))))))))
+                         (if (apply #'= cjout-sizes)
+                             (report n-cjouts (car cjout-sizes))
+                             ;; a nontrivial coinjoin has multiple candidates for
+                             ;; the actual output size. use the largest ones.
+                             (loop for size in cjout-sizes
+                                with most = 0 and best and counts =
+                                  (make-hash-table :test 'eql :size n-cjouts)
+                                for c = (incf (gethash size counts 0))
+                                if (> c most) do (setf most c best size) finally
+                                  (return (report most best))))))))))))))
 
 ;;; we are primarily looking for joinmarket coinjoins
 (defun coinjoinp (txid &aux (tx (getrawtransaction txid)))
