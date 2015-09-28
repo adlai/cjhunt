@@ -33,10 +33,11 @@
                )
   :components ((:module "src"
                 :components
-                ((:file "main" :depends-on ("config" "view" "db"))
-                 (:file "web" :depends-on ("view" "hunt"))
+                ((:file "config") (:file "db" :depends-on ("config"))
+                 (:file "bitcoin-rpc" :depends-on ("config"))
+                 (:file "hunt" :depends-on ("bitcoin-rpc"))
                  (:file "view" :depends-on ("config"))
-                 (:file "db" :depends-on ("config"))
-                 (:file "config") (:file "hunt"))))
+                 (:file "web" :depends-on ("view" "bitcoin-rpc" "hunt"))
+                 (:file "main" :depends-on ("config" "view" "db")))))
   :description "coinjoin hunter"
   :in-order-to ((test-op (load-op cjhunt-test))))

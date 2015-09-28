@@ -1,44 +1,8 @@
 (in-package :cl-user)
 (defpackage cjhunt.hunt
-  (:use :cl :json-rpc :cl-json :drakma :parse-float :alexandria :local-time)
-  (:export :bitcoind.rpc :*node*
-           :getblockchaininfo :getblock :getrawtransaction
-           :coinjoinp :blockjoins))
+  (:use :cl :alexandria :local-time :cjhunt.bitcoin-rpc)
+  (:export :coinjoinp :blockjoins))
 (in-package :cjhunt.hunt)
-
-(defclass bitcoind ()
-  ((url :type string :initarg :url) (stream :type stream)
-   (auth :type (cons string (cons string null)) :initarg :auth)))
-
-(defun-json-rpc bitcoind.rpc :explicit (bitcoind method &rest params)
-  (with-slots (url auth stream) bitcoind
-    (multiple-value-bind (body status headers uri redundant closep)
-        (multiple-value-call #'http-request
-          url :method :post :close () :want-stream t :content
-          (encode-json-alist-to-string
-           `(("method" . ,method) ("params" . ,(apply 'vector params))))
-          :basic-authorization auth :keep-alive t
-          (if (and (slot-boundp bitcoind 'stream) (open-stream-p stream))
-              (values :stream stream) (values)))
-      (declare (ignorable status headers uri redundant))
-      (let ((json:*real-handler* (lambda (amount)
-                                   (parse-float amount :type 'rational))))
-        (json-bind (result error) body
-          (if closep (close body) (read-line (setf stream redundant)))
-          (if error (error "bitcoind error: ~S" error) result))))))
-
-(defvar *node*                          ; edit these!
-  (make-instance 'bitcoind :url "http://localhost:8332" ; or wherever
-                 :auth '("rpcuser" "rpcpassword"))) ; from bitcoin.conf
-
-(macrolet ((define-rpc (command &optional args &rest rpc-args)
-             `(defun ,command ,args
-                (bitcoind.rpc *node* ,(string-downcase command) ,@rpc-args))))
-  (define-rpc getblockchaininfo)
-  (define-rpc getbestblockhash)
-  (define-rpc getblock
-      (&optional (id (cdr (assoc :bestblockhash (getblockchaininfo))))) id)
-  (define-rpc getrawtransaction (id &optional (jsonp 1)) id jsonp))
 
 (defun coinjoinp-cdr (id &optional (tx (getrawtransaction id)))
   (let ((ins (cdr (assoc :vin tx))) (outs (cdr (assoc :vout tx))))
@@ -110,4 +74,3 @@
                 when cjp collect (cons txid cjp))))
     (setf (cdr (assoc :tx blk)) cjs)    ; dump coinbases
     blk))
-

@@ -5,6 +5,7 @@
         :cjhunt.config
         :cjhunt.view
         :cjhunt.db
+        :cjhunt.bitcoin-rpc
         :cjhunt.hunt
         :datafly
         :sxql)
