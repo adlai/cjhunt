@@ -1,7 +1,6 @@
 (in-package :cl-user)
 (defpackage cjhunt.bitcoin-rpc
-  (:nicknames :btc) (:export :rpc :*node* :getblock :getrawtransaction
-                             :getblockchaininfo :getbestblockhash)
+  (:nicknames :btc) (:export :rpc :*node*) ; define-rpc exports more
   (:use :cl :json-rpc :cl-json :parse-float :alexandria :cjhunt.config))
 (in-package :cjhunt.bitcoin-rpc)
 
@@ -41,9 +40,11 @@
 (defparameter *node*                    ; you may want to edit these
   (make-instance 'bitcoind :url "http://localhost:8332" :auth (read-auth)))
 
+(defun rpc (method &rest params) (apply #'bitcoind.rpc *node* method params))
+
 (macrolet ((define-rpc (command &optional args &rest rpc-args)
-             `(defun ,command ,args
-                (bitcoind.rpc *node* ,(string-downcase command) ,@rpc-args))))
+             `(export (defun ,command ,args
+                        (rpc ,(string-downcase command) ,@rpc-args)))))
   (define-rpc getblockchaininfo)
   (define-rpc getbestblockhash)
   (define-rpc getblock

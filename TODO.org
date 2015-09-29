@@ -1,11 +1,17 @@
-* TODO push node config into caveman config
 * TODO demacrolet define-rpc
-* TODO excise bitcoind interface library
+needs to generate default methods from (btc:rpc "help")
+* TODO factor out bitcoind interface library
+needs to be a wholly separate library
 * TODO html templates
 ** TODO block
 ** TODO tx
 ** TODO coinjoin
 * TODO caching
-** TODO coinjoinp
-** TODO coinjoinp-cdr
-** TODO blockjoins
+** TODO pick memoization library:
++ fare-memoization https://github.com/fare/fare-memoization
++ function-cache https://github.com/AccelerationNet/function-cache
+** TODO figure out right cache schemes for each of:
+*** TODO coinjoinp
+*** TODO coinjoinp-cdr
+*** TODO blockjoins
+* DONE snoop local node config

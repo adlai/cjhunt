@@ -1,7 +1,7 @@
 (in-package :cl-user)
 (defpackage cjhunt.hunt
   (:use :cl :alexandria :local-time :cjhunt.bitcoin-rpc)
-  (:export :coinjoinp :blockjoins))
+  (:export :coinjoinp :blockjoins) (:nicknames :cjh))
 (in-package :cjhunt.hunt)
 
 (defun coinjoinp-cdr (id &optional (tx (getrawtransaction id)))
@@ -67,7 +67,7 @@
       ;; primary value - bitcoin, secondary - satoshi per byte
       (values fee (/ fee (length (cdr (assoc :hex tx))) 1/2 (expt 10 -8))))))
 
-(defun blockjoins (blkid &aux (blk (getblock (or blkid (getbestblockhash)))))
+(defun blockjoins (&optional id &aux (blk (if id (getblock id) (getblock))))
   (let ((cjs (loop for txid in (cddr (assoc :tx blk)) ; cddr skips coinbase txs
                 for cjp = (handler-bind ((warning #'muffle-warning))
                             (coinjoinp-cdr txid))
