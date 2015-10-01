@@ -43,8 +43,9 @@
 (defun rpc (method &rest params) (apply #'bitcoind.rpc *node* method params))
 
 (macrolet ((define-rpc (command &optional args &rest rpc-args)
-             `(export (defun ,command ,args
-                        (rpc ,(string-downcase command) ,@rpc-args)))))
+             (let ((string (string-downcase command)))
+               `(export (defun ,command ,args
+                          ,(rpc "help" string) (rpc ,string ,@rpc-args))))))
   (define-rpc getblockchaininfo)
   (define-rpc getbestblockhash)
   (define-rpc getblock
