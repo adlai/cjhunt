@@ -17,24 +17,19 @@
     `(,user ,pass)))
 
 (defclass bitcoind ()
-  ((url :type string :initarg :url) (stream :type stream)
+  ((url :type string :initarg :url)
    (auth :type (cons string (cons string null)) :initarg :auth)))
 
 (defun-json-rpc bitcoind.rpc :explicit (bitcoind method &rest params)
   (with-slots (url auth stream) bitcoind
-    (multiple-value-bind (body status headers uri redundant closep)
-        (multiple-value-call #'drakma:http-request
-          url :method :post :close () :want-stream t :content
-          (encode-json-alist-to-string
-           `(("method" . ,method) ("params" . ,(apply 'vector params))))
-          :basic-authorization auth :keep-alive t
-          (if (and (slot-boundp bitcoind 'stream) (open-stream-p stream))
-              (values :stream stream) (values)))
-      (declare (ignorable status headers uri redundant))
-      (let ((json:*real-handler* (lambda (amount)
-                                   (parse-float amount :type 'rational))))
+    (let ((*real-handler* (lambda (in) (parse-float in :type 'rational))))
+      (with-open-stream
+          (body (drakma:http-request url :method :post :want-stream t :content
+                                     (encode-json-alist-to-string
+                                      `(("method" . ,method)
+                                        ("params" . ,(apply 'vector params))))
+                                     :basic-authorization auth))
         (json-bind (result error) body
-          (if closep (close body) (read-line (setf stream redundant)))
           (if error (error "bitcoind error: ~S" error) result))))))
 
 (defparameter *node*                    ; you may want to edit these
