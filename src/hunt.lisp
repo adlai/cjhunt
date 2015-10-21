@@ -69,9 +69,10 @@
       (values fee (/ fee (length (cdr (assoc :hex tx))) 1/2 (expt 10 -8))))))
 
 (define-memo-function coinjoins-in-block (id &aux (blk (getblock id)))
-  (loop for txid in (cddr (assoc :tx blk)) ; cddr skips coinbase txs
-     for cjp = (handler-bind ((warning #'muffle-warning)) (coinjoinp-cdr txid))
-     when cjp collect (cons txid cjp)))
+  (sort (handler-bind ((warning #'muffle-warning)) ; muffle rejection reasons
+          (loop for txid in (cddr (assoc :tx blk)) ; cddr skips coinbase txs
+             for cjp = (coinjoinp-cdr txid) when cjp collect (cons txid cjp)))
+        #'> :key (lambda (data) (cdr (assoc :size (svref (cdr data) 0))))))
 
-(defun blockjoins (id &aux (blk (getblock id))) ; can't memoize getblock
-  (aprog1 (coinjoins-in-block id) (rplacd (assoc :tx blk) it)))
+(defun blockjoins (id) ; don't memoize getblock, it's volatile!
+  (aprog1 (getblock id) (rplacd (assoc :tx it) (coinjoins-in-block id))))
