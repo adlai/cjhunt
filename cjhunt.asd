@@ -25,6 +25,7 @@
                :sxql
 
                ;; for cjhunt
+               :split-sequence          ; «eighteen years...»
                :cl-json :parse-float
                :alexandria :anaphora    ; ☯
                :local-time :drakma
