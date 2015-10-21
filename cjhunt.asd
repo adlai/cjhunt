@@ -21,15 +21,14 @@
                :djula
 
                ;; for DB
-               :datafly
+               :datafly                 ; well, someday
                :sxql
 
                ;; for cjhunt
-               :cl-json
-               :drakma
-               :parse-float
-               :alexandria
-               :local-time
+               :cl-json :parse-float
+               :alexandria :anaphora    ; ☯
+               :local-time :drakma
+               :fare-memoization        ; this'll do for now
                )
   :components ((:module "src"
                 :components

@@ -1,6 +1,7 @@
 (in-package :cl-user)
 (defpackage cjhunt.hunt
-  (:use :cl :alexandria :local-time :cjhunt.bitcoin-rpc)
+  (:use :cl :anaphora :alexandria :local-time
+        :fare-memoization :cjhunt.bitcoin-rpc)
   (:export :coinjoinp :blockjoins) (:nicknames :cjh))
 (in-package :cjhunt.hunt)
 
@@ -67,10 +68,10 @@
       ;; primary value - bitcoin, secondary - satoshi per byte
       (values fee (/ fee (length (cdr (assoc :hex tx))) 1/2 (expt 10 -8))))))
 
-(defun blockjoins (&optional id &aux (blk (if id (getblock id) (getblock))))
-  (let ((cjs (loop for txid in (cddr (assoc :tx blk)) ; cddr skips coinbase txs
-                for cjp = (handler-bind ((warning #'muffle-warning))
-                            (coinjoinp-cdr txid))
-                when cjp collect (cons txid cjp))))
-    (setf (cdr (assoc :tx blk)) cjs)    ; dump coinbases
-    blk))
+(define-memo-function coinjoins-in-block (id &aux (blk (getblock id)))
+  (loop for txid in (cddr (assoc :tx blk)) ; cddr skips coinbase txs
+     for cjp = (handler-bind ((warning #'muffle-warning)) (coinjoinp-cdr txid))
+     when cjp collect (cons txid cjp)))
+
+(defun blockjoins (id &aux (blk (getblock id))) ; can't memoize getblock
+  (aprog1 (coinjoins-in-block id) (rplacd (assoc :tx blk) it)))
