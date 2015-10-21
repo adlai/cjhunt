@@ -16,8 +16,12 @@ this repository under the ```quicklisp/local-projects/``` directory, then run
 
 You'll also need [Bitcoin](https://github.com/bitcoin/bitcoin) with the
 [transaction index enabled](http://bitcoin.stackexchange.com/a/11876/21107). You
-may also want ```blocknotify=curl -s http://localhost:5000/blockjoins```, which
-will scan for new coinjoins in each new block, once you ```(cjhunt:start)```.
+may also want to ```blocknotify=curl -s http://localhost:5000/blockjoins```,
+which will scan each new block automatigally once you ```(cjhunt:start)```.
+
+If your ```bitcoin.conf``` is in a funny place, you may need to fiddle with
+```src/config.lisp```. If your node is on another machine, you'll need to dirty
+your hands in ```src/bitcoin/rpc-client.lisp```.
 
 ... at which point you'll likely want to either setup
 [SLIME](https://common-lisp.net/project/slime/) and get hacking, or incentivize
