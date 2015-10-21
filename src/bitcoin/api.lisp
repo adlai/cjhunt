@@ -5,8 +5,6 @@
     `(export (defun ,command ,(or args rpc-args) ,(rpc "help" string)
                     (rpc ,string ,@(remove '&optional rpc-args)))))) ;TODO:FIXME
 
-(define-rpc getblockchaininfo)
-(define-rpc getbestblockhash)
 (define-rpc getblock
     (&optional (id (cdr (assoc :bestblockhash (getblockchaininfo))))) id)
 (define-rpc getrawtransaction (id &optional (jsonp 1)) id jsonp)
