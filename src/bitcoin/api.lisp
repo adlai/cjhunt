@@ -9,6 +9,7 @@
     (&optional (id (cdr (assoc :bestblockhash (getblockchaininfo))))) id)
 (define-rpc getrawtransaction (id &optional (jsonp 1)) id jsonp)
 
+;;; FIXME 2: why are these not getting exported!?
 (macrolet ((porn ()                     ; if you have to ask, you'll never know
              (labels ((split (delimiter sequence)
                         (split-sequence delimiter sequence

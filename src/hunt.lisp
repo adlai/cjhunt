@@ -74,5 +74,10 @@
              for cjp = (coinjoinp-cdr txid) when cjp collect (cons txid cjp)))
         #'> :key (lambda (data) (cdr (assoc :size (svref (cdr data) 0))))))
 
-(defun blockjoins (id) ; don't memoize getblock, it's volatile!
-  (aprog1 (getblock id) (rplacd (assoc :tx it) (coinjoins-in-block id))))
+(defgeneric blockjoins (id)             ; don't memoize getblock, it's volatile!
+  (:method ((id string))
+    (handler-case (blockjoins (parse-integer id)) ; first, treat it as a height
+      (error () (aprog1 (getblock id)   ; parse failure, or no block at height
+                  (rplacd (assoc :tx it) (coinjoins-in-block id))))))
+  (:method ((id null)) (blockjoins (btc::getbestblockhash)))    ; /blockjoins?id
+  (:method ((id integer)) (blockjoins (btc::getblockhash id)))) ; ?id=height

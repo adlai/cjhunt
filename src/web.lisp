@@ -1,7 +1,7 @@
 (in-package :cl-user)
 (defpackage cjhunt.web
   (:use :cl
-        :caveman2
+        :caveman2 :caveman2.exception
         :cjhunt.config
         :cjhunt.view
         :cjhunt.db
@@ -32,7 +32,8 @@
   (render-json (remove :tx (if |id| (getblock |id|) (getblock)) :key #'car)))
 
 (defroute "/blockjoins" (&key (|id| (rpc "getbestblockhash")))
-  (render-json (blockjoins |id|)))
+  (handler-case (render-json (blockjoins |id|))
+    (error () (error 'caveman-exception :code 404))))
 
 ;;
 ;; Error pages
