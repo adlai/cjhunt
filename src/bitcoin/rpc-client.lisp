@@ -1,7 +1,7 @@
 (in-package :cl-user)
 (defpackage cjhunt.bitcoin-rpc
   (:nicknames :btc) (:export :rpc :*node*) ; define-rpc exports more
-  (:use :cl :split-sequence :json-rpc :cl-json
+  (:use :cl :split-sequence :json-rpc :cl-json :anaphora
         :parse-float :alexandria :cjhunt.config))
 (in-package :cjhunt.bitcoin-rpc)
 

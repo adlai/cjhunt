@@ -79,5 +79,5 @@
     (handler-case (blockjoins (parse-integer id)) ; first, treat it as a height
       (error () (aprog1 (getblock id)   ; parse failure, or no block at height
                   (rplacd (assoc :tx it) (coinjoins-in-block id))))))
-  (:method ((id null)) (blockjoins (btc::getbestblockhash)))    ; /blockjoins?id
-  (:method ((id integer)) (blockjoins (btc::getblockhash id)))) ; ?id=height
+  (:method ((id null)) (blockjoins (getbestblockhash)))    ; /blockjoins?id
+  (:method ((id integer)) (blockjoins (getblockhash id)))) ; ?id=height

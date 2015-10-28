@@ -28,10 +28,7 @@
 (defroute "/" ()
   (render #P"index.html"))
 
-(defroute "/block" (&key |id|)
-  (render-json (remove :tx (if |id| (getblock |id|) (getblock)) :key #'car)))
-
-(defroute "/blockjoins" (&key (|id| (rpc "getbestblockhash")))
+(defroute "/blockjoins" (&key |id|)
   (handler-case (render-json (blockjoins |id|))
     (error () (error 'caveman-exception :code 404))))
 
