@@ -29,8 +29,9 @@
   (render #P"index.html"))
 
 (defroute "/blockjoins" (&key |id|)
-  (handler-case (render-json (blockjoins |id|))
-    (error () (error 'caveman-exception :code 404))))
+  (flet ((random-sleep (&optional (exp 2)) (sleep (random (exp exp)))))
+    (handler-case (progn (random-sleep) (render-json (blockjoins |id|)))
+      (error () (random-sleep 1) (error 'caveman-exception :code 404)))))
 
 ;;
 ;; Error pages

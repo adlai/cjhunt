@@ -16,8 +16,8 @@ this repository under the ```quicklisp/local-projects/``` directory, then run
 
 You'll also need [Bitcoin](https://github.com/bitcoin/bitcoin) with the
 [transaction index enabled](http://bitcoin.stackexchange.com/a/11876/21107). You
-may also want to ```blocknotify=curl -s http://localhost:5000/blockjoins```,
-which will scan each new block automatigally once you ```(cjhunt:start)```.
+should also ```blocknotify=curl -s http://localhost:5000/blockjoins?id=%s```,
+which will scan each new block automagically once you ```(cjhunt:start)```.
 
 If your ```bitcoin.conf``` is in a funny place, you may need to fiddle with
 ```src/config.lisp```. If your node is on another machine, you'll need to dirty
