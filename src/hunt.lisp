@@ -32,11 +32,11 @@
                                 (when (> n 2) ; skip trivial false positives
                                   ;; these are the two types of coinjoin
                                   ;; currently created by joinmarket:
-                                  (case (- n change)
-                                    (1 `#(((:participants . ,n) (:type . :sweep)
-                                           (:size . ,(* (expt 10 8) size)))))
-                                    (0 `#(((:participants . ,n) (:type . :send)
-                                           (:size . ,(* (expt 10 8) size)))))))))
+                                  (let ((type (- n change)))
+                                    (when (typep type '(member 0 1))
+                                      `((:id . ,id) (:participants . ,n)
+                                        (:size . ,(* (expt 10 8) size))
+                                        (:type . ,(elt '("send" "sweep") type))))))))
                          (if (apply #'= cjout-sizes)
                              (report n-cjouts (car cjout-sizes))
                              ;; a nontrivial coinjoin has multiple candidates for
@@ -71,13 +71,13 @@
 (define-memo-function coinjoins-in-block (id &aux (blk (getblock id)))
   (sort (handler-bind ((warning #'muffle-warning)) ; muffle rejection reasons
           (loop for txid in (cddr (assoc :tx blk)) ; cddr skips coinbase txs
-             for cjp = (coinjoinp-cdr txid) when cjp collect (cons txid cjp)))
-        #'> :key (lambda (data) (cdr (assoc :size (svref (cdr data) 0))))))
+             for cjp = (coinjoinp-cdr txid) when cjp collect cjp))
+        #'> :key (lambda (data) (cdr (assoc :size data)))))
 
 (defgeneric blockjoins (id)             ; don't memoize getblock, it's volatile!
   (:method ((id string))
     (handler-case (blockjoins (parse-integer id)) ; first, treat it as a height
       (error () (aprog1 (getblock id)   ; parse failure, or no block at height
-                  (rplacd (assoc :tx it) (coinjoins-in-block id))))))
+                  (rplacd (assoc :tx it) (coerce (coinjoins-in-block id) 'vector))))))
   (:method ((id null)) (blockjoins (getbestblockhash)))    ; /blockjoins?id
   (:method ((id integer)) (blockjoins (getblockhash id)))) ; ?id=height
