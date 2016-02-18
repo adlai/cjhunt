@@ -2,7 +2,7 @@
 (defpackage cjhunt.hunt
   (:use :cl :anaphora :alexandria :local-time
         :fare-memoization :cjhunt.bitcoin-rpc)
-  (:export :coinjoinp :blockjoins) (:nicknames :cjh))
+  (:export :coinjoinp :blockjoins) (:nicknames :hunt))
 (in-package :cjhunt.hunt)
 
 (defun coinjoinp-cdr (id &optional (tx (getrawtransaction id)))
@@ -68,6 +68,11 @@
       ;; primary value - bitcoin, secondary - satoshi per byte
       (values fee (/ fee (length (cdr (assoc :hex tx))) 1/2 (expt 10 -8))))))
 
+(define-memo-function block-fees (blk)
+  (let ((tx (getrawtransaction (cadr (assoc :tx blk))))) ; cheat: fees = coinbase - 25
+    (assert (eq (caaadr (assoc :vin tx)) :coinbase))     ;        when you ass-u-me...
+    (- (loop for out in (cdr (assoc :vout tx)) sum (cdr (assoc :value out))) 25)))
+
 (define-memo-function coinjoins-in-block (id &aux (blk (getblock id)))
   (sort (handler-bind ((warning #'muffle-warning)) ; muffle rejection reasons
           (loop for txid in (cddr (assoc :tx blk)) ; cddr skips coinbase txs
@@ -77,7 +82,10 @@
 (defgeneric blockjoins (id)             ; don't memoize getblock, it's volatile!
   (:method ((id string))
     (handler-case (blockjoins (parse-integer id)) ; first, treat it as a height
-      (error () (aprog1 (getblock id)   ; parse failure, or no block at height
-                  (rplacd (assoc :tx it) (coerce (coinjoins-in-block id) 'vector))))))
+      (error () (aprog1 (getblock id)   ; next, try treating it as a block hash
+                  (let ((tx (member :tx it :key #'car))) ; finally!list surgery
+                    (psetf (caar tx) :fee (cdar tx) (block-fees it))
+                    (push `(:cj .,(coerce (coinjoins-in-block id) 'vector))
+                          (cdr tx)))))))
   (:method ((id null)) (blockjoins (getbestblockhash)))    ; /blockjoins?id
   (:method ((id integer)) (blockjoins (getblockhash id)))) ; ?id=height

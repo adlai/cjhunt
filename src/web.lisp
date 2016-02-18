@@ -28,7 +28,7 @@
 (defroute "/" ()
   (render #P"index.html"))
 
-(defroute "/blockjoins" (&key |id|)
+(defroute ("/block(joins)?" :regexp t) (&key |id|)
   (handler-case (render-json (blockjoins |id|))
     (error () (error 'caveman-exception :code 404))))
 
