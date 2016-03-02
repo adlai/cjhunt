@@ -5,7 +5,7 @@
   (:export :coinjoinp :blockjoins) (:nicknames :hunt))
 (in-package :cjhunt.hunt)
 
-(defun coinjoinp-cdr (id &optional (tx (getrawtransaction id)))
+(define-memo-function coinjoinp-cdr (id &optional (tx (getrawtransaction id)))
   (let ((ins (cdr (assoc :vin tx))) (outs (cdr (assoc :vout tx))))
     (cond
       ;; ignore transactions which have multisig inputs, since the current
@@ -89,3 +89,35 @@
                           (cdr tx)))))))
   (:method ((id null)) (blockjoins (getbestblockhash)))    ; /blockjoins?id
   (:method ((id integer)) (blockjoins (getblockhash id)))) ; ?id=height
+
+(define-memo-function next-sizes (id &aux (tx (getrawtransaction id)))
+  (mapcar (lambda (out) (* (expt 10 8) (cdr (assoc :value out))))
+	  (cdr (assoc :vout tx))))
+
+(define-memo-function prev-sizes (id &aux (tx (getrawtransaction id)))
+  (mapcar (lambda (in &aux (id (cdr (assoc :txid in))))
+	    (nth (cdr (assoc :vout in)) (next-sizes id)))
+	  (cdr (assoc :vin tx))))
+
+(defun subset-sums-below (set target &optional acc)
+  (when set
+    (destructuring-bind (head . tail) set
+      (let ((gap (- target head)))
+	(sort (if (not (minusp gap))
+		  (append
+		   (acons gap (cons head acc) ()) ; this one
+		   (and (plusp gap)		  ; now those
+			(subset-sums-below
+			 tail gap (cons head acc)))	  ; with
+		   (subset-sums-below tail target acc))	  ; without
+		  (subset-sums-below tail target acc))	  ; no doubt!
+	      #'< :key #'car)))))
+
+(define-memo-function credible-subsets
+    (id &aux (inputs (next-sizes id)) (outputs (prev-sizes id)))
+  (aif (coinjoinp-cdr id)
+       (let* ((size (cdr (assoc :size it)))
+	      (sums (mapcar (lambda (change) (+ change size))
+			    (remove size outputs))))
+	 (error "Doesn't look even quarter baked"))
+       (error "Doesn't even look like a coinjoin")))
