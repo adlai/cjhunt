@@ -113,11 +113,23 @@
 		  (subset-sums-below tail target acc))	  ; no doubt!
 	      #'< :key #'car)))))
 
-(define-memo-function credible-subsets
-    (id &aux (inputs (next-sizes id)) (outputs (prev-sizes id)))
+;;; FIXME this is still mostly broken
+(define-memo-function credible-subsets (id)
   (aif (coinjoinp-cdr id)
-       (let* ((size (cdr (assoc :size it)))
-	      (sums (mapcar (lambda (change) (+ change size))
-			    (remove size outputs))))
-	 (error "Doesn't look even quarter baked"))
+       (labels ((rec (coins targets &optional acc)
+		  (cond
+		    ((null targets) (and (< (reduce #'+ coins))) acc)
+		    ((or  (null targets) (null coins))  ())
+		    (t (let ((target (pop targets)))
+			 (awhen (subset-sums-below coins target)
+			   (dolist (subset it)
+			     (awhen (rec (set-difference ; imprecise
+					  coins (cdr subset))
+					 targets (cons subset acc))
+			       (return it)))))))))
+	 ;; todo: try skipping each target once (ie, as taker)
+	 (rec (prev-sizes id)
+	      (let ((size (cdr (assoc :size it))))
+		(mapcar (lambda (change) (+ change size))
+			(remove size (next-sizes id))))))
        (error "Doesn't even look like a coinjoin")))
