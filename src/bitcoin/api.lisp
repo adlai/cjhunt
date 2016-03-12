@@ -21,6 +21,7 @@
                           `(rpc ,string ,@rpc-args))))))
 
 (define-rpc getrawtransaction (id &optional (jsonp 1)) id jsonp)
+(define-rpc listaccounts (&key (minconf 0) (watchonly t)) minconf watchonly)
 
 (macrolet ((porn ()                     ; if you have to ask, you'll never know
              (labels ((split (delimiter sequence)
