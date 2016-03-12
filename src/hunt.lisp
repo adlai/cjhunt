@@ -68,7 +68,7 @@
       ;; primary value - bitcoin, secondary - satoshi per byte
       (values fee (/ fee (length (cdr (assoc :hex tx))) 1/2 (expt 10 -8))))))
 
-(define-memo-function block-fees (blk)
+(define-memo-function block-fees (id &aux (blk (getblock id)))
   (let ((tx (getrawtransaction (cadr (assoc :tx blk))))) ; cheat: fees = coinbase - 25
     (assert (eq (caaadr (assoc :vin tx)) :coinbase))     ;        when you ass-u-me...
     (- (loop for out in (cdr (assoc :vout tx)) sum (cdr (assoc :value out))) 25)))
@@ -84,7 +84,7 @@
     (handler-case (blockjoins (parse-integer id)) ; first, treat it as a height
       (error () (aprog1 (getblock id)   ; next, try treating it as a block hash
                   (let ((tx (member :tx it :key #'car))) ; finally!list surgery
-                    (psetf (caar tx) :fee (cdar tx) (block-fees it))
+                    (psetf (caar tx) :fee (cdar tx) (block-fees id))
                     (push `(:cj .,(coerce (coinjoins-in-block id) 'vector))
                           (cdr tx)))))))
   (:method ((id null)) (blockjoins (getbestblockhash)))    ; /blockjoins?id
