@@ -1,5 +1,3 @@
-* TODO demacrolet define-rpc
-needs to generate default methods from (btc:rpc "help")
 * TODO factor out bitcoind interface library
 needs to be a wholly separate library
 * TODO html templates
@@ -7,11 +5,20 @@ needs to be a wholly separate library
 ** TODO tx
 ** TODO coinjoin
 * TODO caching
-** TODO pick memoization library:
+** TODO figure out right cache schemes for each of:
+*** TODO blockjoins
+*** TODO coin graph traversal
+**** next-sizes
+**** prev-sizes
+**** bounded subsets
+*** DONE coinjoinp-cdr                                               :MEMO:
+*** DONE coinjoinp                                                 :NORMAL:
+>99% of the calls will delegate to coinjoinp-cdr. this is not premature
+ optimization, since we're really not that interested in cjmining [yet]
+** DONE pick memoization library:
 + fare-memoization https://github.com/fare/fare-memoization
 + function-cache https://github.com/AccelerationNet/function-cache
-** TODO figure out right cache schemes for each of:
-*** TODO coinjoinp
-*** TODO coinjoinp-cdr
-*** TODO blockjoins
+we use fare-memoization, for now.
+* DONE demacrolet define-rpc
+needs to generate default methods from (btc:rpc "help")
 * DONE snoop local node config
