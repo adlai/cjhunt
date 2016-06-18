@@ -87,7 +87,8 @@
                     (psetf (caar tx) :fee (cdar tx) (block-fees id))
                     (push `(:cj .,(coerce (coinjoins-in-block id) 'vector))
                           (cdr tx)))))))
-  (:method ((id null)) (blockjoins (getbestblockhash)))    ; /blockjoins?id
+  (:method ((id null))                  ; /block[joins]?id
+    (blockjoins (cdr (assoc :bestblockhash (getblockchaininfo)))))
   (:method ((id integer)) (blockjoins (getblockhash id)))) ; ?id=height
 
 (define-memo-function next-sizes (id &aux (tx (getrawtransaction id)))

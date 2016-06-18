@@ -35,7 +35,7 @@
                 :components
                 ((:file "config") (:file "db" :depends-on ("config"))
                  (:module "bitcoin" :depends-on ("config") :serial t
-                          :components ((:file "rpc-client") (:file "api")))
+                  :components ((:file "rpc-client") (:file "api")))
                  (:file "hunt" :depends-on ("bitcoin"))
                  (:file "view" :depends-on ("config"))
                  (:file "web" :depends-on ("view" "bitcoin" "hunt"))
