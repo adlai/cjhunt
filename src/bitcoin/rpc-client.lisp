@@ -21,6 +21,14 @@
   ((url :type string :initarg :url)
    (auth :type (cons string (cons string null)) :initarg :auth)))
 
+(define-condition bitcoin-rpc-error (error)
+  ((code :initarg :code :reader bitcoin-rpc-error-code)
+   (message :initarg :message :reader bitcoin-rpc-error-message))
+  (:report (lambda (condition stream)
+             (format stream "Bitcoin RPC Error ~D: ~A"
+                     (bitcoin-rpc-error-code condition)
+                     (bitcoin-rpc-error-message condition)))))
+
 (defun-json-rpc bitcoind.rpc :explicit (bitcoind method &rest params)
   (with-slots (url auth stream) bitcoind
     (let ((*real-handler* (lambda (in) (parse-float in :type 'rational))))
@@ -31,7 +39,9 @@
                                         ("params" . ,(apply 'vector params))))
                                      :basic-authorization auth))
         (json-bind (result error) body
-          (if error (error "bitcoind error: ~S" error) result))))))
+          (if error (error 'bitcoin-rpc-error :code (cdr (assoc :code error))
+                           :message (cdr (assoc :message error)))
+              result))))))
 
 (defparameter *node*                    ; you may want to edit these
   (make-instance 'bitcoind :url "http://localhost:8332" :auth (read-auth)))
