@@ -69,9 +69,11 @@
       (values fee (/ fee (length (cdr (assoc :hex tx))) 1/2 (expt 10 -8))))))
 
 (define-memo-function block-fees (id &aux (blk (getblock id)))
-  (let ((tx (getrawtransaction (cadr (assoc :tx blk))))) ; cheat: fees = coinbase - 25
-    (assert (eq (caaadr (assoc :vin tx)) :coinbase))     ;        when you ass-u-me...
-    (- (loop for out in (cdr (assoc :vout tx)) sum (cdr (assoc :value out))) 25)))
+  (let ((cb (getrawtransaction (cadr (assoc :tx blk)))))
+    (assert (eq (caaadr (assoc :vin cb)) :coinbase))
+    (- (loop for out in (cdr (assoc :vout cb)) sum (cdr (assoc :value out)))
+       (/ (ash (* 50 (expt 10 8)) (- (floor (cdr (assoc :height blk)) 210000)))
+	  (expt 10 8)))))
 
 (define-memo-function coinjoins-in-block (id &aux (blk (getblock id)))
   (sort (handler-bind ((warning #'muffle-warning)) ; muffle rejection reasons
