@@ -25,15 +25,16 @@
                :sxql
 
                ;; for cjhunt
-               :split-sequence          ; «eighteen years...»
+               :split-sequence
                :cl-json :parse-float
-               :alexandria :anaphora    ; ☯
+               :alexandria :anaphora
                :local-time :drakma
-               :fare-memoization        ; this'll do for now
+               :fare-memoization        ; well, dumbsay
                )
   :components ((:module "src"
                 :components
-                ((:file "config") (:file "db" :depends-on ("config"))
+                ((:file "util") (:file "config" :depends-on ("util"))
+                 (:file "db" :depends-on ("config"))
                  (:module "bitcoin" :depends-on ("config") :serial t
                   :components ((:file "rpc-client") (:file "api")))
                  (:file "hunt" :depends-on ("bitcoin"))
