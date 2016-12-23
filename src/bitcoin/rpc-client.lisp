@@ -1,6 +1,6 @@
 (in-package :cl-user)
 (defpackage cjhunt.bitcoin-rpc
-  (:nicknames :btc) (:export :rpc :*node*) ; define-rpc exports more
+  (:nicknames :btc) (:export :rpc :*node* :+false+) ; define-rpc exports more
   (:use :cl :split-sequence :json-rpc :cl-json :anaphora
         :parse-float :alexandria :cjhunt.config))
 (in-package :cjhunt.bitcoin-rpc)
@@ -42,6 +42,10 @@
           (if error (error 'bitcoin-rpc-error :code (cdr (assoc :code error))
                            :message (cdr (assoc :message error)))
               result))))))
+
+(defvar +false+ "false")
+(defmethod encode-json ((false (eql +false+)) &optional stream)
+  (princ false stream) ())
 
 (defparameter *node*                    ; you may want to edit these
   (make-instance 'bitcoind :url "http://localhost:8332" :auth (read-auth)))
