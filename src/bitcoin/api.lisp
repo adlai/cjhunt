@@ -12,14 +12,15 @@
 					     (unless dp `(,(gensym))))))
 			       (apply #'build (if (atom spec) `(,spec) spec))))
 			   (cdr it))))
-      `(export (defun ,command ,all-args ,(rpc "help" string)
-		      ,(aif (position '&optional rpc-args)
-			    `(multiple-value-call #'rpc
-			       ,string ,@(subseq rpc-args 0 it)
-			       ,@(mapcar (lambda (arg)
-					   `(if ,(caddr arg) ,(car arg) (values)))
-					 (subseq all-args (1+ it))))
-			    `(rpc ,string ,@rpc-args))))))
+      `(progn (export ',command)
+              (defun ,command ,all-args ,(rpc "help" string)
+                ,(aif (position '&optional rpc-args)
+                      `(multiple-value-call #'rpc
+                         ,string ,@(subseq rpc-args 0 it)
+                         ,@(mapcar (lambda (arg)
+                                     `(if ,(caddr arg) ,(car arg) (values)))
+                                   (subseq all-args (1+ it))))
+                      `(rpc ,string ,@rpc-args))))))
 
   (define-rpc getrawtransaction (id &optional (jsonp 1)) id jsonp)
   (define-rpc listaccounts (&key (minconf 0) (watchonly t)) minconf watchonly)
