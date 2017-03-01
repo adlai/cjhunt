@@ -25,7 +25,7 @@
                :sxql
 
                ;; for cjhunt
-               :split-sequence
+               :split-sequence :decimals
                :cl-json :parse-float
                :alexandria :anaphora
                :local-time :drakma

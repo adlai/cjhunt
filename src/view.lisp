@@ -32,6 +32,8 @@
 
 (defun pprint-json (*standard-output* json)
   (typecase json
+    (rational
+     (write-string (decimals:format-decimal-number json :round-magnitude -8)))
     (list (pprint-logical-block (*standard-output* json :prefix "{" :suffix "}")
             (loop for (key . value) = (pop json) while key do
                  (pprint-logical-block (*standard-output* ())
