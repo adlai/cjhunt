@@ -6,13 +6,13 @@
 (in-package :cjhunt.hunt)
 
 (define-memo-function coinjoinp-cdr (id &optional (tx (getrawtransaction id)))
-  (let ((ins (cdr (assoc :vin tx))) (outs (cdr (assoc :vout tx))))
+  (let ((ins (cdr (assoc :|vin| tx))) (outs (cdr (assoc :|vout| tx))))
     (cond
       ;; ignore transactions which have multisig inputs, since the current
       ;; joinmarket doesn't use multisig (but could have a multisig output)
       ((find-if (lambda (asm) (string= "0 " asm :end2 2))
                 ins :key (lambda (in)
-                           (cdr (assoc :asm (cdr (assoc :script-sig in))))))
+                           (cdr (assoc :|asm| (cdr (assoc :|script-sig| in))))))
        (warn "~A has multisig inputs" id))
       (t (let* ((outsizes (mapcar #'cdar outs))
                 ;; look for repeated outputs with identical size
@@ -51,33 +51,33 @@
 ;;; we are primarily looking for joinmarket coinjoins
 (defun coinjoinp (txid &aux (tx (getrawtransaction txid)))
   ;; ignore the coinbase transaction
-  (if (find :coinbase (cdr (assoc :vin tx)) :key #'caar) (warn "~A coinbase" txid)
+  (if (find :|coinbase| (cdr (assoc :|vin| tx)) :key #'caar) (warn "~A coinbase" txid)
       (coinjoinp-cdr txid tx)))
 
 (defun tx-fee (txid &aux (tx (getrawtransaction txid)))
   (let ((ins (mapcar (lambda (in)
                        (let* ((ptx (getrawtransaction
-                                    (cdr (assoc :txid in))))
-                              (out (nth (cdr (assoc :vout in))
-                                        (cdr (assoc :vout ptx)))))
-                         (cdr (assoc :value out))))
-                     (cdr (assoc :vin tx))))
-        (outs (mapcar (lambda (out) (cdr (assoc :value out)))
-                      (cdr (assoc :vout tx)))))
+                                    (cdr (assoc :|txid| in))))
+                              (out (nth (cdr (assoc :|vout| in))
+                                        (cdr (assoc :|vout| ptx)))))
+                         (cdr (assoc :|value| out))))
+                     (cdr (assoc :|vin| tx))))
+        (outs (mapcar (lambda (out) (cdr (assoc :|value| out)))
+                      (cdr (assoc :|vout| tx)))))
     (let ((fee (reduce #'- outs :initial-value (reduce #'+ ins))))
       ;; primary value - bitcoin, secondary - satoshi per byte
-      (values fee (/ fee (length (cdr (assoc :hex tx))) 1/2 (expt 10 -8))))))
+      (values fee (/ fee (length (cdr (assoc :|hex| tx))) 1/2 (expt 10 -8))))))
 
 (define-memo-function block-fees (id &aux (blk (getblock id)))
-  (let ((cb (getrawtransaction (cadr (assoc :tx blk)))))
-    (assert (eq (caaadr (assoc :vin cb)) :coinbase))
-    (- (loop for out in (cdr (assoc :vout cb)) sum (cdr (assoc :value out)))
-       (/ (ash (* 50 (expt 10 8)) (- (floor (cdr (assoc :height blk)) 210000)))
+  (let ((cb (getrawtransaction (cadr (assoc :|tx| blk)))))
+    (assert (eq (caaadr (assoc :|vin| cb)) :|coinbase|))
+    (- (loop for out in (cdr (assoc :|vout| cb)) sum (cdr (assoc :|value| out)))
+       (/ (ash (* 50 (expt 10 8)) (- (floor (cdr (assoc :|height| blk)) 210000)))
 	  (expt 10 8)))))
 
 (define-memo-function coinjoins-in-block (id &aux (blk (getblock id)))
   (sort (handler-bind ((warning #'muffle-warning)) ; muffle rejection reasons
-          (loop for txid in (cddr (assoc :tx blk)) ; cddr skips coinbase txs
+          (loop for txid in (cddr (assoc :|tx| blk)) ; cddr skips coinbase txs
              for cjp = (coinjoinp-cdr txid) when cjp collect cjp))
         #'> :key (lambda (data) (cdr (assoc :size data)))))
 
@@ -85,22 +85,22 @@
   (:method ((id string))
     (handler-case (blockjoins (parse-integer id)) ; first, treat it as a height
       (error () (aprog1 (getblock id)   ; next, try treating it as a block hash
-                  (let ((tx (member :tx it :key #'car))) ; finally!list surgery
+                  (let ((tx (member :|tx| it :key #'car))) ; finally!list surgery
                     (psetf (caar tx) :fee (cdar tx) (block-fees id))
                     (push `(:cj .,(coerce (coinjoins-in-block id) 'vector))
                           (cdr tx)))))))
   (:method ((id null))                  ; /block[joins]?id
-    (blockjoins (cdr (assoc :bestblockhash (getblockchaininfo)))))
+    (blockjoins (cdr (assoc :|bestblockhash| (getblockchaininfo)))))
   (:method ((id integer)) (blockjoins (getblockhash id)))) ; ?id=height
 
 (define-memo-function next-sizes (id &aux (tx (getrawtransaction id)))
-  (mapcar (lambda (out) (* (expt 10 8) (cdr (assoc :value out))))
-	  (cdr (assoc :vout tx))))
+  (mapcar (lambda (out) (* (expt 10 8) (cdr (assoc :|value| out))))
+	  (cdr (assoc :|vout| tx))))
 
 (define-memo-function prev-sizes (id &aux (tx (getrawtransaction id)))
-  (mapcar (lambda (in &aux (id (cdr (assoc :txid in))))
-	    (nth (cdr (assoc :vout in)) (next-sizes id)))
-	  (cdr (assoc :vin tx))))
+  (mapcar (lambda (in &aux (id (cdr (assoc :|txid| in))))
+	    (nth (cdr (assoc :|vout| in)) (next-sizes id)))
+	  (cdr (assoc :|vin| tx))))
 
 (defun subset-sums-below (set target &optional acc)
   (when set

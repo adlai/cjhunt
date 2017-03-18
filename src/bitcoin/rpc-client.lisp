@@ -5,6 +5,14 @@
         :parse-float :alexandria :cjhunt.config))
 (in-package :cjhunt.bitcoin-rpc)
 
+;;; cl-json finishings
+(defvar +false+ "false")
+(defmethod encode-json ((false (eql +false+)) &optional stream)
+  (princ false stream) ())
+(setf *json-identifier-name-to-lisp* #'identity)
+(setf *lisp-identifier-name-to-json* #'identity)
+
+;;; and now for something completely different: a poorly polished turd
 (defun read-auth (&optional (path (config :bitcoin)) &aux user pass)
   (with-open-file (config path)
     (loop for line = (read-line config () ())
@@ -38,14 +46,11 @@
                                       `(("method" . ,method)
                                         ("params" . ,(apply 'vector params))))
                                      :basic-authorization auth))
-        (json-bind (result error) body
-          (if error (error 'bitcoin-rpc-error :code (cdr (assoc :code error))
-                           :message (cdr (assoc :message error)))
-              result))))))
-
-(defvar +false+ "false")
-(defmethod encode-json ((false (eql +false+)) &optional stream)
-  (princ false stream) ())
+        (json-bind (|result| |error|) body
+          (if |error| (error 'bitcoin-rpc-error
+                             :code    (cdr (assoc :code    |error|))
+                             :message (cdr (assoc :message |error|)))
+              |result|))))))
 
 (defparameter *node*                    ; you may want to edit these
   (make-instance 'bitcoind :url "http://localhost:8332" :auth (read-auth)))
