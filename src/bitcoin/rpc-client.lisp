@@ -48,8 +48,8 @@
                                      :basic-authorization auth))
         (json-bind (|result| |error|) body
           (if |error| (error 'bitcoin-rpc-error
-                             :code    (cdr (assoc :code    |error|))
-                             :message (cdr (assoc :message |error|)))
+                             :code    (cdr (assoc :|code|    |error|))
+                             :message (cdr (assoc :|message| |error|)))
               |result|))))))
 
 (defparameter *node*                    ; you may want to edit these
@@ -60,7 +60,7 @@
 
 (defun joinmarket-account-overview (account)
   (let* ((txs (sort (rpc "listtransactions" account 1000 0 t) #'>
-                    :key (lambda (tx) (cdr (assoc :confirmations tx)))))
+                    :key (lambda (tx) (cdr (assoc :|confirmations| tx)))))
          (addresses (loop with all = (rpc "getaddressesbyaccount" account)
                        with hash = (make-hash-table
                                     :test #'equal :size (length all))
@@ -69,19 +69,19 @@
          (utxos (make-hash-table
                  :test #'equal :size (hash-table-size addresses))))
     (flet ((utxo (data)                 ; colon lollon
-             (acons (cdr (assoc :amount data))
-                    (cdr (assoc :txid data))
-                    (cdr (assoc :vout data)))))
+             (acons (cdr (assoc :|amount| data))
+                    (cdr (assoc :|txid| data))
+                    (cdr (assoc :|vout| data)))))
       ;; we see all coinjoins twice, since `listtransactions' actually returns an
       ;; object for each output to a watched address - usually, cjout and change.
       (dolist (tx txs)
         (let ((utxo (utxo tx)))
-          (push utxo (gethash (cdr (assoc :address tx)) addresses))
-          (setf (gethash utxo utxos) (cdr (assoc :address tx)))))
+          (push utxo (gethash (cdr (assoc :|address| tx)) addresses))
+          (setf (gethash utxo utxos) (cdr (assoc :|address| tx)))))
       (dolist (tx (delete-duplicates txs :test #'string= :key
-                                     (lambda (tx) (cdr (assoc :txid tx))))
+                                     (lambda (tx) (cdr (assoc :|txid| tx))))
                addresses)
-        (dolist (in (cdr (assoc :vin (getrawtransaction (cdr (assoc :txid tx))))))
+        (dolist (in (cdr (assoc :|vin| (getrawtransaction (cdr (assoc :|txid| tx))))))
           (let* ((txo (utxo in)) (from (gethash txo utxos)))
             (when from
               (remhash txo utxos)
