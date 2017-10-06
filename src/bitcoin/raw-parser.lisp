@@ -1,6 +1,7 @@
 (in-package :cl-user)
 (defpackage cjhunt.bitcoin-parser
-  (:use :cl :anaphora :alexandria :local-time) (:nicknames :btc.raw))
+  (:use :cl :anaphora :alexandria :local-time) (:nicknames :btc.raw)
+  (:export :txid :parse-block :parse-header :parse-txs))
 (in-package :cjhunt.bitcoin-parser)
 
 (defun flip-bytes (hex &key (reverse t) &aux (length (length hex)))
@@ -24,7 +25,7 @@
                (ash (hex 3) (- (hex 1) 3)))    ; current target
             (hex 4))))                         ; nonce
 
-(defun parse-block-txs (string &aux (i 160))
+(defun parse-txs (string &aux (i 160))
   (labels ((b (n) (flip-bytes (subseq string i (incf i (* 2 n)))))
            (x (n) (parse-integer (b n) :radix 16))
            (int () (acase (x 1) (#xFF (x 8)) (#xFE (x 4)) (#xFD (x 2)) (t it)))
@@ -40,6 +41,29 @@
              (multiple-value-call #'vector ver (vecof #'i n) (vecof #'o)
                                   (alet (w sw n) (apply #'values (x 4) it)))))
     (vecof #'tx)))
+
+(defun parse-block (hex)
+  (cons (multiple-value-call #'vector (parse-header hex)) (parse-txs hex)))
+
+(defun txid (tx)
+  (labels ((cat (&rest all)
+             (apply #'concatenate '(simple-array (unsigned-byte 8) (*)) all))
+           (le (n &optional (b 4))
+             (ironclad:integer-to-octets n :n-bits (* 8 b) :big-endian ()))
+           (xdvi (s) (case s ((1 2) '(2 #xFD)) ((3 4) '(4 #xFE)) (t '(8 #xFF))))
+           (sint (n &aux (size (ceiling (integer-length n) 8)))
+             (if (> #xFD n) (le n 1)
+                 (destructuring-bind (m w) (xdvi size) (cat `#(,w) (le n m)))))
+           (txt (s) (cat (sint (length s)) s))
+           (vec (vec thunk)
+             (reduce #'cat vec :key thunk :initial-value (sint (length vec))))
+           (o (o) (cat (le (car o) 8) (txt (cdr o))))
+           (i (i) (cat (ironclad:hex-string-to-byte-array (flip-bytes (caar i)))
+                       (le (cdar i)) (txt (cadr i)) (le (cddr i))))
+           (sha256 (stuff) (ironclad:digest-sequence :sha256 stuff)))
+    (ironclad:byte-array-to-hex-string
+     (nreverse (sha256 (sha256 (cat (le (elt tx 0)) (vec (elt tx 1) #'i)
+                                    (vec (elt tx 2) #'o) (le (elt tx 3)))))))))
 
 ;;;
 ;;; Disk format found in blkABCDE.dat files
