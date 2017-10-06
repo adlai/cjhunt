@@ -98,8 +98,8 @@
 	      #'< :key #'car)))))
 
 ;;; FIXME this is still mostly broken
-(define-memo-function credible-subsets (id)
-  (aif (coinjoinp-cdr id)
+(define-memo-function credible-subsets (tx &aux (id (txid tx)))
+  (aif (coinjoinp tx)
        (labels ((rec (coins targets &optional acc)
 		  (cond
 		    ((null targets) (and (< (reduce #'+ coins))) acc)

@@ -4,15 +4,11 @@
   (:export :txid :parse-block :parse-header :parse-txs))
 (in-package :cjhunt.bitcoin-parser)
 
-(defun flip-bytes (hex &key (reverse t) &aux (length (length hex)))
-  (if (not reverse)
-      (loop for i below length by 2 do
-           (rotatef (aref hex i) (aref hex (1+ i)))
-         finally (return hex))
-      (loop for i below (/ length 2) by 2 do
-           (rotatef (aref hex i) (aref hex (- length i 2)))
-           (rotatef (aref hex (1+ i)) (aref hex (- length i 1)))
-         finally (return hex))))
+(defun flip-bytes (hex &aux (length (length hex)) (hex (copy-seq hex)))
+  (loop for i below (/ length 2) by 2 do
+       (rotatef (aref hex i) (aref hex (- length i 2)))
+       (rotatef (aref hex (1+ i)) (aref hex (- length i 1)))
+     finally (return hex)))
 
 (defun parse-header (string &aux (index 0))
   (labels ((next (n) (flip-bytes (subseq string index (incf index (* 2 n)))))
