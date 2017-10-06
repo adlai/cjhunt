@@ -11,22 +11,29 @@
       (let ((cjouts (remove 1 outs :key
                             (lambda (out) (count (car out) outs :key #'car))))
             (n-pks (length (remove-duplicates ins :test #'equal :key #'caar))))
-        (let ((n-cjouts (length cjouts)))
-          (unless (or (= 0 n-cjouts) (< n-pks n-cjouts))
-            (let ((cjout-sizes (map 'list #'car cjouts)))
-              (flet ((report (n size)
-                       (alet (- (* 2 n) (length outs))
-                         (when (and (> n 2) (typep it '(member 0 1)))
-                           `((:id . ,(txid tx)) (:parts . ,n) (:size . ,size)
-                             (:type . ,(format () "~[send~;sweep~];~[pkh~;sw~]"
-                                               it (- (length tx) 4))))))))
-                (if (apply #'= cjout-sizes) (report n-cjouts (car cjout-sizes))
-                    (loop for size in cjout-sizes
-                       with most = 0 and best and counts =
-                         (make-hash-table :test 'eql :size n-cjouts)
-                       for c = (incf (gethash size counts 0))
-                       if (> c most) do (setf most c best size) finally
-                         (return (report most best))))))))))))
+        (flet ((swp (a b c d list key)
+                 (count-if (lambda (x)
+                             (and (= (length x) 23) (= (elt x 0) a)
+                                  (= (elt x 1) b)   (= (elt x c) d)))
+                           list :key key))
+               (report (n size swps)
+                 (let ((extra (- (* 2 n) (length outs)))
+                       (swp (or (= 5 (length tx))
+                                (and (<= n (car swps) (cdr swps))))))
+                   (when (and (> n 2) (typep extra '(member 0 1)))
+                     `((:id . ,(txid tx)) (:parts . ,n) (:size . ,size)
+                       (:type .,(format () "~[send~;sweep~];~:[pkh~;sw~]"
+                                        extra swp)))))))
+          (let ((n-cjouts (length cjouts)) (sizes (map 'list #'car cjouts))
+                (p2wpkhsh (cons (swp 22 0 2 20 ins #'cadr)
+                                (swp 169 20 22 135 outs #'cdr))))
+            (unless (or (= 0 n-cjouts) (< n-pks n-cjouts))
+              (if (apply #'= sizes) (report n-cjouts (car sizes) p2wpkhsh)
+                  (loop for size in sizes with most = 0 and best
+                     and counts = (make-hash-table :test 'eql :size n-cjouts)
+                     for c = (incf (gethash size counts 0))
+                     if (> c most) do (setf most c best size) finally
+                       (return (report most best p2wpkhsh)))))))))))
 
 (defun tx-fee (txid &aux (tx (getrawtransaction txid)))
   (let ((ins (mapcar (lambda (in)
