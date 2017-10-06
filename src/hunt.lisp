@@ -1,58 +1,32 @@
 (in-package :cl-user)
 (defpackage cjhunt.hunt
   (:use :cl :anaphora :alexandria :local-time
-        :fare-memoization :cjhunt.bitcoin-rpc)
+        :fare-memoization :cjhunt.bitcoin-rpc :cjhunt.bitcoin-parser)
   (:export :coinjoinp :blockjoins) (:nicknames :hunt))
 (in-package :cjhunt.hunt)
 
-(define-memo-function coinjoinp-cdr (id &optional (tx (getrawtransaction id)))
-  (let ((ins (cdr (assoc :|vin| tx))) (outs (cdr (assoc :|vout| tx))))
-    (cond
-      ;; ignore transactions which have multisig inputs, since the current
-      ;; joinmarket doesn't use multisig (but could have a multisig output)
-      ((find-if (lambda (asm) (string= "0 " asm :end2 2))
-                ins :key (lambda (in)
-                           (cdr (assoc :|asm| (cdr (assoc :|script-sig| in))))))
-       (warn "~A has multisig inputs" id))
-      (t (let* ((outsizes (mapcar #'cdar outs))
-                ;; look for repeated outputs with identical size
-                (cjouts (loop for out in outs for amt = (cdar out)
-                           when (> (count amt outsizes) 1) collect out))
-                ;; ignore duplicate input public keys
-                (pks (delete-duplicates (mapcar (compose #'cdar #'cdaddr)
-                                                ins) :test #'string=)))
-           (if (null cjouts) (warn "~A no duplicate output sizes" id)
-               (let ((n-pks (length pks)) (n-cjouts (length cjouts)))
-                 ;; the number of distinct public keys is an upper bound on the
-                 ;; number of distinct parties involved in the transaction
-                 (if (< n-pks n-cjouts)
-                     (warn "~A inputs ~D < ~D cjouts" id n-pks n-cjouts)
-                     (let ((cjout-sizes (mapcar #'cdar cjouts)))
-                       (flet ((report (n size &aux (change (- (length outs) n)))
-                                (when (> n 2) ; skip trivial false positives
-                                  ;; these are the two types of coinjoin
-                                  ;; currently created by joinmarket:
-                                  (let ((type (- n change)))
-                                    (when (typep type '(member 0 1))
-                                      `((:id . ,id) (:participants . ,n)
-                                        (:size . ,(* (expt 10 8) size))
-                                        (:type . ,(elt '("send" "sweep") type))))))))
-                         (if (apply #'= cjout-sizes)
-                             (report n-cjouts (car cjout-sizes))
-                             ;; a nontrivial coinjoin has multiple candidates for
-                             ;; the actual output size. use the largest ones.
-                             (loop for size in cjout-sizes
-                                with most = 0 and best and counts =
-                                  (make-hash-table :test 'eql :size n-cjouts)
-                                for c = (incf (gethash size counts 0))
-                                if (> c most) do (setf most c best size) finally
-                                  (return (report most best))))))))))))))
-
-;;; we are primarily looking for joinmarket coinjoins
-(defun coinjoinp (txid &aux (tx (getrawtransaction txid)))
-  ;; ignore the coinbase transaction
-  (if (find :|coinbase| (cdr (assoc :|vin| tx)) :key #'caar) (warn "~A coinbase" txid)
-      (coinjoinp-cdr txid tx)))
+(defun coinjoinp (tx)
+  (let ((ins (elt tx 1)) (outs (elt tx 2)))
+    (unless (find 0 ins :key (lambda (in) (elt (caar in) 0)))
+      (let ((cjouts (remove 1 outs :key
+                            (lambda (out) (count (car out) outs :key #'car))))
+            (n-pks (length (remove-duplicates ins :test #'equal :key #'caar))))
+        (let ((n-cjouts (length cjouts)))
+          (unless (or (= 0 n-cjouts) (< n-pks n-cjouts))
+            (let ((cjout-sizes (map 'list #'car cjouts)))
+              (flet ((report (n size)
+                       (alet (- (* 2 n) (length outs))
+                         (when (and (> n 2) (typep it '(member 0 1)))
+                           `((:id . ,(txid tx)) (:parts . ,n) (:size . ,size)
+                             (:type . ,(format () "~[send~;sweep~];~[pkh~;sw~]"
+                                               it (- (length tx) 4))))))))
+                (if (apply #'= cjout-sizes) (report n-cjouts (car cjout-sizes))
+                    (loop for size in cjout-sizes
+                       with most = 0 and best and counts =
+                         (make-hash-table :test 'eql :size n-cjouts)
+                       for c = (incf (gethash size counts 0))
+                       if (> c most) do (setf most c best size) finally
+                         (return (report most best))))))))))))
 
 (defun tx-fee (txid &aux (tx (getrawtransaction txid)))
   (let ((ins (mapcar (lambda (in)
@@ -75,10 +49,9 @@
        (/ (ash (* 50 (expt 10 8)) (- (floor (cdr (assoc :|height| blk)) 210000)))
 	  (expt 10 8)))))
 
-(define-memo-function coinjoins-in-block (id &aux (blk (getblock id)))
-  (sort (handler-bind ((warning #'muffle-warning)) ; muffle rejection reasons
-          (loop for txid in (cddr (assoc :|tx| blk)) ; cddr skips coinbase txs
-             for cjp = (coinjoinp-cdr txid) when cjp collect cjp))
+(define-memo-function coinjoins-in-block (id &aux (blk (getblock id +false+)))
+  (sort (loop for tx across (parse-txs blk) when (coinjoinp tx)
+           collect it into cjs finally (return (coerce cjs 'vector)))
         #'> :key (lambda (data) (cdr (assoc :size data)))))
 
 (defgeneric blockjoins (id)             ; don't memoize getblock, it's volatile!
@@ -86,9 +59,11 @@
     (handler-case (blockjoins (parse-integer id)) ; first, treat it as a height
       (error () (aprog1 (getblock id)   ; next, try treating it as a block hash
                   (let ((tx (member :|tx| it :key #'car))) ; finally!list surgery
-                    (psetf (caar tx) :fee (cdar tx) (block-fees id))
-                    (push `(:cj .,(coerce (coinjoins-in-block id) 'vector))
-                          (cdr tx)))))))
+                    (psetf (caar tx) :cj (cdar tx) (coinjoins-in-block id))
+                    ;; (psetf (caar tx) :fee (cdar tx) (block-fees id))
+                    ;; (push `(:cj .,(coerce (coinjoins-in-block id) 'vector))
+                    ;;       (cdr tx))
+                    )))))
   (:method ((id null))                  ; /block[joins]?id
     (blockjoins (cdr (assoc :|bestblockhash| (getblockchaininfo)))))
   (:method ((id integer)) (blockjoins (getblockhash id)))) ; ?id=height
