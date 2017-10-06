@@ -47,7 +47,7 @@
                   (loop
                      (pprint-json *standard-output* (aref json i))
                      (if (= (incf i) end) (return nil))
-                     (write-char #\Space)
+                     (format t ", ")
                      (pprint-newline :fill))))))
     (t (format t "~(~A~)" json))))
 

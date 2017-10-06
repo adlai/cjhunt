@@ -16,10 +16,9 @@
                              (and (= (length x) 23) (= (elt x 0) a)
                                   (= (elt x 1) b)   (= (elt x c) d)))
                            list :key key))
-               (report (n size swps)
-                 (let ((extra (- (* 2 n) (length outs)))
-                       (swp (or (= 5 (length tx))
-                                (and (<= n (car swps) (cdr swps))))))
+               (report (n size swps &aux (swi (car swps)) (swo (cdr swps)))
+                 (let ((swp (or (= 5 (length tx)) (<= n (min swi swo))))
+                       (extra (- (* 2 n) (length outs))))
                    (when (and (> n 2) (typep extra '(member 0 1)))
                      `((:id . ,(txid tx)) (:parts . ,n) (:size . ,size)
                        (:type .,(format () "~[send~;sweep~];~:[pkh~;sw~]"
