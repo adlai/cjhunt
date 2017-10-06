@@ -24,51 +24,22 @@
                (ash (hex 3) (- (hex 1) 3)))    ; current target
             (hex 4))))                         ; nonce
 
-(defun parse-satoshint (string index)
-  (labels ((next (n) (flip-bytes (subseq string index (incf index (* 2 n)))))
-           (hex (n) (parse-integer (next n) :radix 16)))
-    (values (acase (hex 1) (#xFF (hex 8)) (#xFE (hex 4)) (#xFD (hex 2)) (t it))
-            index)))
-
-(defun parse-tx (string index)
-  (labels ((next (n) (flip-bytes (subseq string index (incf index (* 2 n)))))
-           (hex (n) (parse-integer (next n) :radix 16))
-           (cpct () (acase (hex 1)
-                      (#xFF (hex 8)) (#xFE (hex 4)) (#xFD (hex 2)) (t it)))
-           (script () (alet (cpct)
-                        (ironclad:hex-string-to-byte-array
-                         string :start index :end (incf index (* 2 it)))))
-           (input () `((,(next 32) . ,(hex 4)) . (,(script) . ,(hex 4))))
-           (output () `(,(hex 8) . ,(script))))
-    (values (hex 4)
-            (do* ((count (cpct)) (i 0 (1+ i)) (inputs (make-array count)))
-                 ((= i count) inputs) (setf (aref inputs i) (input)))
-            (do* ((count (cpct)) (i 0 (1+ i)) (outputs (make-array count)))
-                 ((= i count) outputs) (setf (aref outputs i) (output)))
-            (hex 4))))
-
-(defun parse-block-txs (string &aux (index 160))
-  (declare (optimize debug))
-  (labels ((next (n) (flip-bytes (subseq string index (incf index (* 2 n)))))
-           (hex (n) (parse-integer (next n) :radix 16))
-           (cpct () (acase (hex 1)
-                      (#xFF (hex 8)) (#xFE (hex 4)) (#xFD (hex 2)) (t it)))
-           (script () (alet (cpct)
-                        (ironclad:hex-string-to-byte-array
-                         string :start index :end (incf index (* 2 it)))))
-           (ipt () `((,(next 32) . ,(hex 4)) . (,(script) . ,(hex 4))))
-           (opt () `(,(hex 8) . ,(script))))
-    (macrolet ((vecof (body &optional (count '(cpct)))
-                 `(do* ((count ,count) (i 0 (1+ i)) (acc (make-array count)))
-                       ((= i count) acc) (setf (aref acc i) ,body))))
-      (vecof (multiple-value-call #'vector                ;
-               (values (hex 4))                           ; technical debt
-               (alet (cpct)                               ; in car nate !
-                 (when (zerop it) (assert (= 1 (hex 1)))) ;
-                 (if (not (zerop it)) (values (vecof (ipt) it) (vecof (opt)))
-                     (alet (cpct) (values (vecof (ipt) it) (vecof (opt))
-                                          (vecof (vecof (script)) it)))))
-               (values (hex 4)))))))
+(defun parse-block-txs (string &aux (i 160))
+  (labels ((b (n) (flip-bytes (subseq string i (incf i (* 2 n)))))
+           (x (n) (parse-integer (b n) :radix 16))
+           (int () (acase (x 1) (#xFF (x 8)) (#xFE (x 4)) (#xFD (x 2)) (t it)))
+           (txt () (alet (int) (ironclad:hex-string-to-byte-array
+                                string :start i :end (incf i (* 2 it)))))
+           (i () `((,(b 32).,(x 4)).(,(txt).,(x 4)))) (o () `(,(x 8).,(txt)))
+           (w (sw n) (and sw `(,(vecof (lambda () (vecof #'txt)) n))))
+           (vecof (thunk &optional (count (int)))
+             (do* ((i 0 (1+ i)) (acc (make-array count)))
+                  ((= i count) acc) (setf (aref acc i) (funcall thunk))))
+           (tx (&aux (ver (x 4)) (n (int)) sw)
+             (when (= 0 n) (assert (= 1 (x 1))) (setf n (int) sw t))
+             (multiple-value-call #'vector ver (vecof #'i n) (vecof #'o)
+                                  (alet (w sw n) (apply #'values (x 4) it)))))
+    (vecof #'tx)))
 
 ;;;
 ;;; Disk format found in blkABCDE.dat files
