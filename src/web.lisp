@@ -1,6 +1,6 @@
 (in-package :cl-user)
 (defpackage cjhunt.web
-  (:use :cl :anaphora
+  (:use :cl :anaphora :alexandria
         :caveman2 :caveman2.exception
         :cjhunt.util
         :cjhunt.config
@@ -29,11 +29,11 @@
 (defroute "/" ()
   (render #P"index.html"))
 
-(defroute ("/block(joins)?" :regexp t) (&key |id|)
+(defroute ("/block") (&key |id|)
   (handler-case (render-json (blockjoins |id|))
     (error () (error 'caveman-exception :code 404))))
 
-(defroute ("/flush?") (&key |symbol| |pass| |package|)
+(defroute ("/flush") (&key |symbol| |pass| |package|)
   (aif (and (eq |pass| "CHANGEME")
             (get (find-symbol (string-upcase |symbol|)
                               (find-package
@@ -42,9 +42,19 @@
        (with-output-to-string (*trace-output*)
          (time (setf (slot-value it 'fare-memoization::table)
                      (remhash-if (lambda (txid data)
-                                   (declare (ignore txid)) (not (car data)))
+                                   (declare (ignore txid))
+                                   (= (length (car data)) 0))
                                  (fare-memoization::memoized-table it)))))
        "flushing must be explicitly enabled: s/eq/string=/ and recompile"))
+
+(defroute ("/random") ()
+  (redirect (aif (remove 0 (hash-table-alist
+                            (fare-memoization::memoized-table
+                             (get 'hunt::coinjoins-in-block
+                                  'fare-memoization::memoization-info)))
+                         :key (compose #'length #'cadr))
+                 (format () "/block?id=~A" (caar (random-elt it)))
+                 "/block?id=488066")))
 
 ;;
 ;; Error pages

@@ -5,7 +5,7 @@
 (in-package :cjhunt.util)
 
 (defun remhash-if (predicate old)
-  "Copy `old', keeping only entries for which (funcall `predicate' key value)"
+  "Copy `old', skipping all entries for which (funcall `predicate' key value)"
   (let ((save (loop for key being the hash-key in old using (hash-value data)
                  unless (funcall predicate key data) collect (cons key data))))
     (declare (dynamic-extent save))
