@@ -94,21 +94,27 @@
                        #'< :key #'car)))))
     (rec set target ())))
 
-;;; FIXME this is still mostly broken
-(define-memo-function credible-subsets (tx &aux (id (txid tx)) (count -1))
+;;; FIXME: assumes all makers profited, and... only works for sweeps
+(define-memo-function credible-groupings (tx &aux (id (txid tx)))
   (aif (coinjoinp tx)
        (labels ((rec (coins targets &optional acc)
 		  (cond
-		    ((null targets) acc) ((null coins) ()) ; FIXME y'know...
+		    ((null targets) acc) ((null coins) ())
 		    (t (let ((target (pop targets)))
 			 (awhen (subset-sums-below coins target #'cdr)
 			   (dolist (subset it)
 			     (awhen (rec (set-difference coins (cdr subset))
 					 targets (cons subset acc))
 			       (return it)))))))))
-	 ;; todo: try skipping each target once (ie, as taker)
-	 (rec (prev-coins id)
-	      (let ((size (getjso :size it)))
-		(mapcar (lambda (change) (+ change size))
-			(remove size (next-sizes id))))))
-       (error "Doesn't even look like a coinjoin")))
+         (let* ((prev (prev-coins id))
+                (targets (let ((size (getjso :size it)))
+                           (mapcar (lambda (change) (+ change size))
+                                   (remove size (next-sizes id)))))
+                ;; todo: try skipping each target once, rather than this IDIOCY
+                (guess-a (rec prev targets))
+                (guess-b (rec prev (reverse targets)))
+                (guess-c (rec (reverse prev) targets))
+                (guess-d (rec (reverse prev) (reverse targets))))
+           (car (sort (list guess-a guess-b guess-c guess-d) #'<
+                      :key (lambda (sets) (reduce #'+ (mapcar #'car sets)))))))
+       (error "Doesn't even look like a [joinmarket] coinjoin")))
