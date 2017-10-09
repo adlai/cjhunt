@@ -1,7 +1,7 @@
 (in-package :cl-user)
 (defpackage cjhunt.util
   (:use :cl :anaphora)
-  (:export :remhash-if))
+  (:export :remhash-if :getjso))
 (in-package :cjhunt.util)
 
 (defun remhash-if (predicate old)
@@ -13,3 +13,7 @@
                              :test (hash-table-test old) :size (length save)
                              :rehash-threshold (hash-table-rehash-threshold old))
       (loop for (key . data) in save do (setf (gethash key it) data)))))
+
+(defun getjso (key &optional map)
+  (if map (cdr (assoc (intern (string key) :keyword) map :test #'string=))
+      (lambda (map) (getjso key map))))

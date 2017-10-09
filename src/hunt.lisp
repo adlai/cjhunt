@@ -1,6 +1,6 @@
 (in-package :cl-user)
 (defpackage cjhunt.hunt
-  (:use :cl :anaphora :alexandria :local-time
+  (:use :cl :anaphora :alexandria :local-time :cjhunt.util
         :fare-memoization :cjhunt.bitcoin-rpc :cjhunt.bitcoin-parser)
   (:export :coinjoinp :blockjoins) (:nicknames :hunt))
 (in-package :cjhunt.hunt)
@@ -35,30 +35,28 @@
                        (return (report most best p2wpkhsh)))))))))))
 
 (defun tx-fee (txid &aux (tx (getrawtransaction txid)))
-  (let ((ins (mapcar (lambda (in)
-                       (let* ((ptx (getrawtransaction
-                                    (cdr (assoc :|txid| in))))
-                              (out (nth (cdr (assoc :|vout| in))
-                                        (cdr (assoc :|vout| ptx)))))
-                         (cdr (assoc :|value| out))))
-                     (cdr (assoc :|vin| tx))))
-        (outs (mapcar (lambda (out) (cdr (assoc :|value| out)))
-                      (cdr (assoc :|vout| tx)))))
+  (let ((ins (mapcar (lambda (in &aux (ptx (getrawtransaction
+                                            (getjso "txid" in))))
+                       (getjso "value" (nth (getjso "vout" in)
+                                            (getjso "vout" ptx))))
+                     (getjso "vin" tx)))
+        (outs (mapcar (lambda (out) (getjso "value" out))
+                      (getjso "vout" tx))))
     (let ((fee (reduce #'- outs :initial-value (reduce #'+ ins))))
       ;; primary value - bitcoin, secondary - satoshi per byte
-      (values fee (/ fee (length (cdr (assoc :|hex| tx))) 1/2 (expt 10 -8))))))
+      (values fee (/ fee (length (getjso "hex" tx)) 1/2 (expt 10 -8))))))
 
 (define-memo-function block-fees (id &aux (blk (getblock id)))
   (let ((cb (getrawtransaction (cadr (assoc :|tx| blk)))))
     (assert (eq (caaadr (assoc :|vin| cb)) :|coinbase|))
-    (- (loop for out in (cdr (assoc :|vout| cb)) sum (cdr (assoc :|value| out)))
-       (/ (ash (* 50 (expt 10 8)) (- (floor (cdr (assoc :|height| blk)) 210000)))
+    (- (loop for out in (getjso "vout" cb) sum (getjso "value" out))
+       (/ (ash (* 50 (expt 10 8)) (- (floor (getjso "height" blk) 210000)))
 	  (expt 10 8)))))
 
 (define-memo-function coinjoins-in-block (id &aux (blk (getblock id +false+)))
   (sort (loop for tx across (parse-txs blk) when (coinjoinp tx)
            collect it into cjs finally (return (coerce cjs 'vector)))
-        #'> :key (lambda (data) (cdr (assoc :size data)))))
+        #'> :key (lambda (data) (getjso :size data))))
 
 (defgeneric blockjoins (id)             ; don't memoize getblock, it's volatile!
   (:method ((id string))
@@ -71,17 +69,17 @@
                     ;;       (cdr tx))
                     )))))
   (:method ((id null))                  ; /block[joins]?id
-    (blockjoins (cdr (assoc :|bestblockhash| (getblockchaininfo)))))
+    (blockjoins (getjso "bestblockhash" (getblockchaininfo))))
   (:method ((id integer)) (blockjoins (getblockhash id)))) ; ?id=height
 
 (define-memo-function next-sizes (id &aux (tx (getrawtransaction id)))
-  (mapcar (lambda (out) (* (expt 10 8) (cdr (assoc :|value| out))))
-	  (cdr (assoc :|vout| tx))))
+  (mapcar (lambda (out) (* (expt 10 8) (getjso "value" out)))
+	  (getjso "vout" tx)))
 
 (define-memo-function prev-sizes (id &aux (tx (getrawtransaction id)))
-  (mapcar (lambda (in &aux (id (cdr (assoc :|txid| in))))
-	    (nth (cdr (assoc :|vout| in)) (next-sizes id)))
-	  (cdr (assoc :|vin| tx))))
+  (mapcar (lambda (in &aux (id (getjso "txid" in)))
+	    (nth (getjso "vout" in) (next-sizes id)))
+	  (getjso "vin" tx)))
 
 (defun subset-sums-below (set target &optional acc)
   (when set
@@ -113,7 +111,7 @@
 			       (return it)))))))))
 	 ;; todo: try skipping each target once (ie, as taker)
 	 (rec (prev-sizes id)
-	      (let ((size (cdr (assoc :size it))))
+	      (let ((size (getjso :size it)))
 		(mapcar (lambda (change) (+ change size))
 			(remove size (next-sizes id))))))
        (error "Doesn't even look like a coinjoin")))
