@@ -76,41 +76,38 @@
   (mapcar (lambda (out) (* (expt 10 8) (getjso "value" out)))
 	  (getjso "vout" tx)))
 
-(define-memo-function prev-sizes (id &aux (tx (getrawtransaction id)))
+(define-memo-function prev-coins (id &aux (tx (getrawtransaction id)))
   (mapcar (lambda (in &aux (id (getjso "txid" in)))
-	    (nth (getjso "vout" in) (next-sizes id)))
+            (alet (getjso "vout" in) (acons id it (nth it (next-sizes id)))))
 	  (getjso "vin" tx)))
 
-(defun subset-sums-below (set target &optional acc)
-  (when set
-    (destructuring-bind (head . tail) set
-      (let ((gap (- target head)))
-	(sort (if (not (minusp gap))
-		  (append
-		   (acons gap (cons head acc) ()) ; this one
-		   (and (plusp gap)		  ; now those
-			(subset-sums-below
-			 tail gap (cons head acc)))	  ; with
-		   (subset-sums-below tail target acc))	  ; without
-		  (subset-sums-below tail target acc))	  ; no doubt!
-	      #'< :key #'car)))))
+(defun subset-sums-below (set target &optional (key #'identity))
+  (labels ((rec (tail target acc)
+             (when tail
+               (let* ((head (pop tail)) (gap (- target (funcall key head))))
+                 (sort (if (not (minusp gap))
+                           (append (acons gap (cons head acc) ())
+                                   (and (plusp gap)
+                                        (rec tail gap (cons head acc)))
+                                   (rec tail target acc))
+                           (rec tail target acc))
+                       #'< :key #'car)))))
+    (rec set target ())))
 
 ;;; FIXME this is still mostly broken
-(define-memo-function credible-subsets (tx &aux (id (txid tx)))
+(define-memo-function credible-subsets (tx &aux (id (txid tx)) (count -1))
   (aif (coinjoinp tx)
        (labels ((rec (coins targets &optional acc)
 		  (cond
-		    ((null targets) (and (< (reduce #'+ coins))) acc)
-		    ((or  (null targets) (null coins))  ())
+		    ((null targets) acc) ((null coins) ()) ; FIXME y'know...
 		    (t (let ((target (pop targets)))
-			 (awhen (subset-sums-below coins target)
+			 (awhen (subset-sums-below coins target #'cdr)
 			   (dolist (subset it)
-			     (awhen (rec (set-difference ; imprecise
-					  coins (cdr subset))
+			     (awhen (rec (set-difference coins (cdr subset))
 					 targets (cons subset acc))
 			       (return it)))))))))
 	 ;; todo: try skipping each target once (ie, as taker)
-	 (rec (prev-sizes id)
+	 (rec (prev-coins id)
 	      (let ((size (getjso :size it)))
 		(mapcar (lambda (change) (+ change size))
 			(remove size (next-sizes id))))))
