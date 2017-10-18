@@ -30,8 +30,7 @@
   (render #P"index.html"))
 
 (defroute ("/block") (&key |id|)
-  (handler-case (render-json (blockjoins |id|))
-    (error () (error 'caveman-exception :code 404))))
+  (handler-case (render-json (blockjoins |id|)) (error () (fail))))
 
 (defroute ("/flush") (&key |symbol| |pass| |package|)
   (aif (and (eq |pass| "CHANGEME")
@@ -55,10 +54,12 @@
               (aif (remove 0 all :key (compose #'length #'cadr))
                    (format () "/block?id=~A"
                            (caar (elt it (mod (length all) (length it)))))
-                   (error ())))))
+                   (fail 204)))))
 
 ;;
-;; Error pages
+;; Shouting drools
+
+(defun fail (&optional (code 404)) (error 'caveman-exception :code code))
 
 (defmethod on-exception ((app <web>) (code (eql 404)))
   (declare (ignore app))
