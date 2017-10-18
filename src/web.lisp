@@ -48,13 +48,14 @@
        "flushing must be explicitly enabled: s/eq/string=/ and recompile"))
 
 (defroute ("/random") ()
-  (redirect (aif (remove 0 (hash-table-alist
-                            (fare-memoization::memoized-table
-                             (get 'hunt::coinjoins-in-block
-                                  'fare-memoization::memoization-info)))
-                         :key (compose #'length #'cadr))
-                 (format () "/block?id=~A" (caar (random-elt it)))
-                 "/block?id=488066")))
+  (redirect (let ((all (hash-table-alist
+                        (fare-memoization::memoized-table
+                         (get 'hunt::coinjoins-in-block
+                              'fare-memoization::memoization-info)))))
+              (aif (remove 0 all :key (compose #'length #'cadr))
+                   (format () "/block?id=~A"
+                           (caar (elt it (mod (length all) (length it)))))
+                   (error ())))))
 
 ;;
 ;; Error pages
