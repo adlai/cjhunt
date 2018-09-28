@@ -25,7 +25,10 @@
   (define-rpc getrawtransaction (id &optional (jsonp 1)) id jsonp)
   (define-rpc listaccounts (&key (minconf 0) (watchonly t)) minconf watchonly)
 
-  (macrolet ((porn ()         ; if you have to ask, you'll never know
+  (macrolet ((porn ()         ; "if you have to ask, you'll never know"
+               ;; in light of fall 2018's reveal of pull/9049's bug,
+               ;; it may be prudent to cease adopting the sort of
+               ;; gossipy garbage-tolerance exhibited herein:
 	       (labels ((split (delimiter sequence)
 			  (split-sequence delimiter sequence
 					  :remove-empty-subseqs t))
