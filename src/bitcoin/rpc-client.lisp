@@ -40,12 +40,14 @@
 (defun-json-rpc bitcoind.rpc :explicit (bitcoind method &rest params)
   (with-slots (url auth stream) bitcoind
     (let ((*real-handler* (lambda (in) (parse-float in :type 'rational))))
+      ;; this default inconveniences when common divisibility is informative
       (with-open-stream
           (body (drakma:http-request url :method :post :want-stream t :content
                                      (encode-json-alist-to-string
                                       `(("method" . ,method)
                                         ("params" . ,(apply 'vector params))))
-                                     :basic-authorization auth))
+                                     :basic-authorization auth
+                                     :connection-timeout ())) ; fix meeee!!!!!
         (json-bind (|result| |error|) body
           (if |error| (error 'bitcoin-rpc-error
                              :code    (cdr (assoc :|code|    |error|))
