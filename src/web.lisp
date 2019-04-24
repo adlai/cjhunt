@@ -54,7 +54,7 @@
               (aif (remove 0 all :key (compose #'length #'cadr))
                    (format () "/block?id=~A"
                            (caar (elt it (mod (length all) (length it)))))
-                   (fail 204)))))
+                   (fail 204)))))       ; TODO: hunt 42412 smooth breaker
 
 ;;
 ;; Shouting drools
