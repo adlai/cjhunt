@@ -12,7 +12,9 @@ You'll need a Common Lisp compiler, such as [Steel Bank](http://sbcl.org) or
 The easiest way to pull in the dependencies is via
 [Quicklisp](https://www.quicklisp.org/beta/). Once you've installed it, clone
 this repository under the ```quicklisp/local-projects/``` directory, then run
-```(ql:quickload "cjhunt")```.
+```(ql:quickload "cjhunt")```. Please avoid doing that only because it was the
+_easiest_ way; for example, consider doing it to appease a number both low and
+finite of angry managers; better yet, just don't; best: READ THE INFLATED CRAP
 
 You'll also need [Bitcoin](https://github.com/bitcoin/bitcoin) with the
 [transaction index enabled](http://bitcoin.stackexchange.com/a/11876/21107). You
