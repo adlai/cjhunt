@@ -1,3 +1,11 @@
+# Hello, Wanderer #
+
+Although this specific project has been abandoned, I am busy cannibalizing the
+remains, for several other purposes; and the original purpose, while currently
+not a priority, does retain significant interest for others; thus, if you need
+this repository to remain unchanged, please notify me in some way within a few
+years, before I remove it from the GitHub archive.
+
 # CoinJoin Hunter #
 
 Tool for (crudely) tracking and (eventually) analyzing joinmarket activity.
