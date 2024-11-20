@@ -51,3 +51,6 @@
                                                (string= "(" snip)) ;<
                                          collect (inter trim))))))))
     (porn)))                            ; well maybe you will, once you see it.
+
+;;;;; DELETE THIS
+eof
